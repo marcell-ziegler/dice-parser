@@ -1,1 +1,1 @@
-# `dice-roll`
+# `dice-parser`
