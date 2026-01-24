@@ -161,4 +161,60 @@ mod test {
         assert_eq!(res.total, 0);
         assert_eq!(res.detail, RollDetail::Constant(0))
     }
+
+    #[test]
+    fn test_keep_highest() {
+        // Keep Highest 1
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(12));
+
+        let spec = RollSpec::new(5, 20, Some(Keep::Highest(1)));
+        let res = roller.roll_spec(&spec);
+
+        assert_eq!(res.total, 20);
+        if let RollDetail::Dice(d) = res.detail {
+            assert_eq!(d, vec![9, 10, 14, 12, 20])
+        } else {
+            panic!()
+        }
+
+        // Keep Highest 2
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(12));
+        let spec = RollSpec::new(5, 20, Some(Keep::Highest(2)));
+        let res = roller.roll_spec(&spec);
+
+        assert_eq!(res.total, 34);
+        if let RollDetail::Dice(d) = res.detail {
+            assert_eq!(d, vec![9, 10, 14, 12, 20])
+        } else {
+            panic!()
+        }
+    }
+
+    #[test]
+    fn test_keep_lowest() {
+        // Keep Lowest 1
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(12));
+
+        let spec = RollSpec::new(5, 20, Some(Keep::Lowest(1)));
+        let res = roller.roll_spec(&spec);
+
+        assert_eq!(res.total, 9);
+        if let RollDetail::Dice(d) = res.detail {
+            assert_eq!(d, vec![9, 10, 14, 12, 20])
+        } else {
+            panic!()
+        }
+
+        // Keep Lowest 2
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(12));
+        let spec = RollSpec::new(5, 20, Some(Keep::Lowest(2)));
+        let res = roller.roll_spec(&spec);
+
+        assert_eq!(res.total, 19);
+        if let RollDetail::Dice(d) = res.detail {
+            assert_eq!(d, vec![9, 10, 14, 12, 20])
+        } else {
+            panic!()
+        }
+    }
 }
