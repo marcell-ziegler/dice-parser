@@ -88,6 +88,8 @@ impl<R: Rng> Roller<R> {
     /// Calculate the total roll value for a `RollSpec`. Returns 0 if `spec.count == 0`.
     ///
     /// * `spec`: the `dice-parser::ast::RollSpec` to be rolled.
+    ///
+    /// # Examples
     pub fn roll_spec(&mut self, spec: &RollSpec) -> RollResult {
         if spec.count == 0 && spec.sides == 0 {
             return RollResult::new(0, RollDetail::Constant(0));
@@ -113,8 +115,27 @@ impl<R: Rng> Roller<R> {
 
 #[cfg(test)]
 mod test {
+    use super::*;
+    use rand::{self, SeedableRng};
+
     #[test]
     fn test_roll() {
-        todo!();
+        let mut roller = Roller::from_rng(rand::rngs::StdRng::seed_from_u64(12));
+        let spec = RollSpec::new(2, 20, None);
+
+        let res = roller.roll_spec(&spec);
+
+        // Make a reference generator to check rolling algorithm for correctness.
+        let mut ref_rng = rand::rngs::StdRng::seed_from_u64(12);
+
+        if let RollDetail::Dice(dice) = res.detail {
+            assert_eq!(
+                dice,
+                vec![
+                    ref_rng.random_range(1..=spec.sides),
+                    ref_rng.random_range(1..=spec.sides)
+                ]
+            )
+        }
     }
 }
