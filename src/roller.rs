@@ -127,17 +127,17 @@ impl<R: Rng> Roller<R> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use rand::{self, SeedableRng};
+    use rand::{self, SeedableRng, rngs::StdRng};
 
     #[test]
     fn test_roll() {
-        let mut roller = Roller::from_rng(rand::rngs::StdRng::seed_from_u64(12));
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(12));
         let spec = RollSpec::new(2, 20, None);
 
         let res = roller.roll_spec(&spec);
 
         // Make a reference generator to check rolling algorithm for correctness.
-        let mut ref_rng = rand::rngs::StdRng::seed_from_u64(12);
+        let mut ref_rng = StdRng::seed_from_u64(12);
 
         assert_eq!(res.total, 10 + 9);
         if let RollDetail::Dice(dice) = res.detail {
@@ -153,7 +153,7 @@ mod test {
 
     #[test]
     fn test_0_sides() {
-        let mut roller = Roller::from_rng(rand::rngs::StdRng::seed_from_u64(42));
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(42));
         let spec = RollSpec::new(3, 0, None);
         let res = roller.roll_spec(&spec);
         assert_eq!(res.total, 3);
@@ -162,7 +162,7 @@ mod test {
 
     #[test]
     fn test_0_count() {
-        let mut roller = Roller::from_rng(rand::rngs::StdRng::seed_from_u64(36));
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(36));
         let spec = RollSpec::new(0, 12, None);
 
         let res = roller.roll_spec(&spec);
