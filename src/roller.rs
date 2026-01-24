@@ -136,18 +136,9 @@ mod test {
 
         let res = roller.roll_spec(&spec);
 
-        // Make a reference generator to check rolling algorithm for correctness.
-        let mut ref_rng = StdRng::seed_from_u64(12);
-
         assert_eq!(res.total, 10 + 9);
         if let RollDetail::Dice(dice) = res.detail {
-            assert_eq!(
-                dice,
-                vec![
-                    ref_rng.random_range(1..=spec.sides),
-                    ref_rng.random_range(1..=spec.sides)
-                ]
-            )
+            assert_eq!(dice, vec![9, 10])
         }
     }
 
