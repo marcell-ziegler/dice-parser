@@ -85,14 +85,23 @@ impl<R: Rng> Roller<R> {
             .collect()
     }
 
-    /// Calculate the total roll value for a `RollSpec`. Returns 0 if `spec.count == 0`.
+    /// Calculate the total roll value for a `RollSpec`.
     ///
     /// * `spec`: the `dice-parser::ast::RollSpec` to be rolled.
     ///
+    /// # Returns
+    /// * `Constant(0)`: if `spec.count == 0`
+    /// * `Constant(spec.count)`: if `spec.sides == 0`
+    /// * `Dice(...)`: if `spec.count > 0 && spec.sides > 0` and contains the rolled dice.
+    ///
     /// # Examples
     pub fn roll_spec(&mut self, spec: &RollSpec) -> RollResult {
-        if spec.count == 0 && spec.sides == 0 {
+        if spec.count == 0 {
             return RollResult::new(0, RollDetail::Constant(0));
+        }
+
+        if spec.sides == 0 {
+            return RollResult::new(0, RollDetail::Constant(spec.count as i32));
         }
 
         let mut rolls = self.roll_dice(spec.sides, spec.count);
