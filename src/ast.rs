@@ -11,6 +11,12 @@ pub struct RollSpec {
     pub keep: Option<Keep>,
 }
 
+impl RollSpec {
+    pub fn new(count: u32, sides: u32, keep: Option<Keep>) -> Self {
+        RollSpec { count, sides, keep }
+    }
+}
+
 pub enum Keep {
     Highest(u32),
     Lowest(u32),
