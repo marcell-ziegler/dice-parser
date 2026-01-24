@@ -159,4 +159,15 @@ mod test {
         assert_eq!(res.total, 3);
         assert_eq!(res.detail, RollDetail::Constant(3));
     }
+
+    #[test]
+    fn test_0_count() {
+        let mut roller = Roller::from_rng(rand::rngs::StdRng::seed_from_u64(36));
+        let spec = RollSpec::new(0, 12, None);
+
+        let res = roller.roll_spec(&spec);
+
+        assert_eq!(res.total, 0);
+        assert_eq!(res.detail, RollDetail::Constant(0))
+    }
 }
