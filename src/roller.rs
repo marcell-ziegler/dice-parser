@@ -25,6 +25,7 @@ pub struct RollResult {
 ///   the order they were rolled.
 /// * `Constant(i32)`: The roll was a constant value, and no rng was done. The i32 contains that
 ///   value.
+#[derive(Debug, PartialEq, Eq)]
 pub enum RollDetail {
     Dice(Vec<u32>),
     Constant(i32),
@@ -90,6 +91,7 @@ impl<R: Rng> Roller<R> {
     /// * `spec`: the `dice-parser::ast::RollSpec` to be rolled.
     ///
     /// # Returns
+    /// Except the self-evident totals (where )
     /// * `Constant(0)`: if `spec.count == 0`
     /// * `Constant(spec.count)`: if `spec.sides == 0`
     /// * `Dice(...)`: if `spec.count > 0 && spec.sides > 0` and contains the rolled dice.
@@ -146,5 +148,14 @@ mod test {
                 ]
             )
         }
+    }
+
+    #[test]
+    fn test_0_sides() {
+        let mut roller = Roller::from_rng(rand::rngs::StdRng::seed_from_u64(42));
+        let spec = RollSpec::new(3, 0, None);
+        let res = roller.roll_spec(&spec);
+        assert_eq!(res.total, 3);
+        assert_eq!(res.detail, RollDetail::Constant(3));
     }
 }
