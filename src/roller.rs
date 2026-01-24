@@ -139,6 +139,7 @@ mod test {
         // Make a reference generator to check rolling algorithm for correctness.
         let mut ref_rng = rand::rngs::StdRng::seed_from_u64(12);
 
+        assert_eq!(res.total, 10 + 9);
         if let RollDetail::Dice(dice) = res.detail {
             assert_eq!(
                 dice,
