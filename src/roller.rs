@@ -103,7 +103,7 @@ impl<R: Rng> Roller<R> {
         }
 
         if spec.sides == 0 {
-            return RollResult::new(0, RollDetail::Constant(spec.count as i32));
+            return RollResult::new(spec.count, RollDetail::Constant(spec.count as i32));
         }
 
         let mut rolls = self.roll_dice(spec.sides, spec.count);
