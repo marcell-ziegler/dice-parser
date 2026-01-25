@@ -1,6 +1,6 @@
 //! All rng and rolling logic.
 
-use crate::ast::{Keep, RollSpec};
+use crate::ast::{DiceExpr, Keep, RollSpec};
 use rand::{Rng, rngs::ThreadRng};
 
 /// An rng for rolling dice.
@@ -8,6 +8,12 @@ use rand::{Rng, rngs::ThreadRng};
 /// * `rng`: The rng base which is `rand::Rng`.
 pub struct Roller<R: Rng> {
     rng: R,
+}
+
+impl Default for Roller<ThreadRng> {
+    fn default() -> Self {
+        Roller { rng: rand::rng() }
+    }
 }
 
 /// Representation of the result of rolling 0 or more dice
@@ -37,9 +43,19 @@ impl RollResult {
     }
 }
 
-impl Default for Roller<ThreadRng> {
-    fn default() -> Self {
-        Roller { rng: rand::rng() }
+pub struct ExprResult {
+    pub total: i32,
+    pub rolls: Vec<u32>,
+    pub modifier: i32,
+}
+
+impl ExprResult {
+    pub fn new(total: i32, rolls: Vec<u32>, modifier: i32) -> Self {
+        ExprResult {
+            total,
+            rolls,
+            modifier,
+        }
     }
 }
 
@@ -120,6 +136,15 @@ impl<R: Rng> Roller<R> {
         } else {
             let total = rolls.iter().sum();
             RollResult::new(total, rolled)
+        }
+    }
+
+    pub fn roll_expr(&mut self, expr: &DiceExpr) -> ExprResult {
+        match expr {
+            DiceExpr::Sum(lhs, rhs) => self.roll_expr(lhs) + self.roll_expr(rhs),
+            DiceExpr::Difference(lhs, rhs) => self.roll_expr(lhs) - self.roll_expr(rhs),
+            DiceExpr::Roll(spec) => self.roll_spec(spec),
+            DiceExpr::Literal(lit) => ExprResult,
         }
     }
 }
