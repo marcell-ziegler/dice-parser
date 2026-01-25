@@ -1,3 +1,5 @@
+use crate::roller::{ExprResult, Roller};
+
 pub enum DiceExpr {
     Sum(Box<DiceExpr>, Box<DiceExpr>),
     Difference(Box<DiceExpr>, Box<DiceExpr>),
@@ -5,6 +7,12 @@ pub enum DiceExpr {
     Literal(i32),
 }
 
+impl DiceExpr {
+    pub fn roll(&self) -> ExprResult {
+        let mut roller = Roller::default();
+        roller.roll_expr(self)
+    }
+}
 pub struct RollSpec {
     pub count: u32,
     pub sides: u32,
