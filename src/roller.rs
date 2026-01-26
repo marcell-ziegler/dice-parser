@@ -1,6 +1,14 @@
 //! All rng and rolling logic.
 
-use crate::ast::{DiceExpr, Keep, RollSpec};
+use std::{
+    num::TryFromIntError,
+    ops::{Add, Neg, Sub},
+};
+
+use crate::{
+    ast::{DiceExpr, Keep, RollSpec},
+    error::DiceError,
+};
 use rand::{Rng, rngs::ThreadRng};
 
 /// An rng for rolling dice.
@@ -24,8 +32,13 @@ pub struct RollResult {
     pub total: u32,
     pub detail: RollDetail,
 }
+impl RollResult {
+    pub fn new(total: u32, detail: RollDetail) -> Self {
+        RollResult { total, detail }
+    }
+}
 
-/// Represents the source of a `RollResult`.
+/// Represents the dice or constant of a `RollResult`.
 ///
 /// * `Dice(Vec<u32>)`: The roll was based on dice, and the Vec<u32> are their individual rolls in
 ///   the order they were rolled.
@@ -37,20 +50,72 @@ pub enum RollDetail {
     Constant(i32),
 }
 
-impl RollResult {
-    pub fn new(total: u32, detail: RollDetail) -> Self {
-        RollResult { total, detail }
-    }
-}
-
 pub struct ExprResult {
     pub total: i32,
-    pub rolls: Vec<u32>,
+    pub rolls: Vec<i32>,
     pub modifier: i32,
 }
 
+impl TryFrom<RollResult> for ExprResult {
+    type Error = DiceError;
+    fn try_from(val: RollResult) -> Result<Self, DiceError> {
+        let expr = ExprResult {
+            // Checked try making total signed
+            total: val.total.try_into()?,
+            rolls: match &val.detail {
+                RollDetail::Dice(d) => d
+                    .iter()
+                    .map(|&x| x.try_into())
+                    .collect::<Result<Vec<i32>, TryFromIntError>>()?,
+                // RollDetail::Dice(d) => {
+                //     let mut v: Vec<i32> = Vec::new();
+                //     for die in d.iter() {
+                //         v.push((*die).try_into()?);
+                //     }
+                //     v
+                // }
+                RollDetail::Constant(_) => Vec::new(),
+            },
+            modifier: if let RollDetail::Constant(n) = &val.detail {
+                *n
+            } else {
+                0
+            },
+        };
+        Ok(expr)
+    }
+}
+
+impl Add<ExprResult> for ExprResult {
+    type Output = Self;
+    fn add(mut self, other: ExprResult) -> Self {
+        self.rolls.extend(other.rolls.iter());
+        self.modifier += other.modifier;
+        self.total += other.total;
+        self
+    }
+}
+
+impl Neg for ExprResult {
+    type Output = Self;
+    fn neg(mut self) -> Self {
+        // Negate each roll
+        self.rolls.iter_mut().for_each(|x| *x = -*x);
+        self.modifier = -self.modifier;
+        self.total = -self.total;
+        self
+    }
+}
+
+impl Sub<ExprResult> for ExprResult {
+    type Output = Self;
+    fn sub(self, other: ExprResult) -> Self {
+        self + (-other)
+    }
+}
+
 impl ExprResult {
-    pub fn new(total: i32, rolls: Vec<u32>, modifier: i32) -> Self {
+    pub fn new(total: i32, rolls: Vec<i32>, modifier: i32) -> Self {
         ExprResult {
             total,
             rolls,
@@ -102,7 +167,7 @@ impl<R: Rng> Roller<R> {
             .collect()
     }
 
-    /// Calculate the total roll value for a `RollSpec`.
+    /// Evaluate a `RollSpec`.
     ///
     /// * `spec`: the `dice-parser::ast::RollSpec` to be rolled.
     ///
@@ -139,12 +204,16 @@ impl<R: Rng> Roller<R> {
         }
     }
 
-    pub fn roll_expr(&mut self, expr: &DiceExpr) -> ExprResult {
+    pub fn roll_expr(&mut self, expr: &DiceExpr) -> Result<ExprResult, DiceError> {
         match expr {
-            DiceExpr::Sum(lhs, rhs) => self.roll_expr(lhs) + self.roll_expr(rhs),
-            DiceExpr::Difference(lhs, rhs) => self.roll_expr(lhs) - self.roll_expr(rhs),
-            DiceExpr::Roll(spec) => self.roll_spec(spec),
-            DiceExpr::Literal(lit) => ExprResult,
+            DiceExpr::Sum(lhs, rhs) => Ok(self.roll_expr(lhs)? + self.roll_expr(rhs)?),
+            DiceExpr::Difference(lhs, rhs) => Ok(self.roll_expr(lhs)? - self.roll_expr(rhs)?),
+            DiceExpr::Roll(spec) => self.roll_spec(spec).try_into(),
+            DiceExpr::Literal(lit) => Ok(ExprResult {
+                total: *lit,
+                rolls: Vec::new(),
+                modifier: *lit,
+            }),
         }
     }
 }
