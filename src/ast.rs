@@ -1,4 +1,7 @@
-use crate::roller::{ExprResult, Roller};
+use crate::{
+    error::DiceError,
+    roller::{ExprResult, Roller},
+};
 
 pub enum DiceExpr {
     Sum(Box<DiceExpr>, Box<DiceExpr>),
@@ -8,7 +11,7 @@ pub enum DiceExpr {
 }
 
 impl DiceExpr {
-    pub fn roll(&self) -> ExprResult {
+    pub fn roll(&self) -> Result<ExprResult, DiceError> {
         let mut roller = Roller::default();
         roller.roll_expr(self)
     }
