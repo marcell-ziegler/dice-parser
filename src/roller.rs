@@ -24,7 +24,8 @@ impl Default for Roller<ThreadRng> {
     }
 }
 
-/// Representation of the result of rolling 0 or more dice
+/// Representation of the result of rolling 0 or more dice. Note that a 0-sided dice is interpreted
+/// as a constant. See also `dice-parser::ast::DiceExpr::roll()`.
 ///
 /// * `total`: The sum of the rolls
 /// * `detail`: A `RollDetail` containing the terms that made the `total`.
@@ -51,6 +52,12 @@ pub enum RollDetail {
     Constant(i32),
 }
 
+/// The result of a whole `DiceExpr`.
+///
+/// * `total`: The sum of all rolls and modifiers. Subtracted rolls are treated as negative in the
+///   sum.
+/// * `rolls`: All rolls made or used during evaluation. Subtracted rolls are negative.
+/// * `modifier`: The sum of all constant terms in the `DiceExpr`.
 pub struct ExprResult {
     pub total: i32,
     pub rolls: Vec<i32>,
@@ -68,13 +75,6 @@ impl TryFrom<RollResult> for ExprResult {
                     .iter()
                     .map(|&x| x.try_into())
                     .collect::<Result<Vec<i32>, TryFromIntError>>()?,
-                // RollDetail::Dice(d) => {
-                //     let mut v: Vec<i32> = Vec::new();
-                //     for die in d.iter() {
-                //         v.push((*die).try_into()?);
-                //     }
-                //     v
-                // }
                 RollDetail::Constant(_) => Vec::new(),
             },
             modifier: if let RollDetail::Constant(n) = &val.detail {
@@ -138,7 +138,7 @@ impl<R: Rng> Roller<R> {
     /// * `sides`: Number of sides on the dice.
     ///
     /// # Panics
-    /// Panics in debug if `sides == 0`
+    /// Panics if `sides == 0`.
     fn roll_die(&mut self, sides: u32) -> u32 {
         debug_assert!(sides > 0);
         self.rng.random_range(1..=sides)
@@ -173,7 +173,7 @@ impl<R: Rng> Roller<R> {
     /// * `spec`: the `dice-parser::ast::RollSpec` to be rolled.
     ///
     /// # Returns
-    /// Except the self-evident totals (where )
+    /// Except the self-evident totals (where)
     /// * `Constant(0)`: if `spec.count == 0`
     /// * `Constant(spec.count)`: if `spec.sides == 0`
     /// * `Dice(...)`: if `spec.count > 0 && spec.sides > 0` and contains the rolled dice.
@@ -205,6 +205,13 @@ impl<R: Rng> Roller<R> {
         }
     }
 
+    /// Evaluate a DiceExpr.
+    ///
+    /// * `expr`: The epression to be evaluated.
+    ///
+    /// # Returns
+    /// * `Ok(ExprResult)` if successful.
+    /// * `Err(DiceError)` if evaluation failed.
     pub fn roll_expr(&mut self, expr: &DiceExpr) -> Result<ExprResult, DiceError> {
         match expr {
             DiceExpr::Sum(lhs, rhs) => Ok(self.roll_expr(lhs)? + self.roll_expr(rhs)?),
