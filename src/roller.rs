@@ -430,7 +430,22 @@ mod test {
             panic!("expected Dice variant")
         }
     }
+    #[test]
+    fn test_d100_range_validation() {
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(500));
+        let spec = RollSpec::new(1000000, 100, None);
+        let res = roller.roll_spec(&spec).unwrap();
 
+        if let RollDetail::Dice(rolls) = res.detail {
+            for roll in rolls {
+                assert!(
+                    (1_u32..=100_u32).contains(&roll),
+                    "D100 roll out of range: {}",
+                    roll
+                );
+            }
+        }
+    }
     // ==== Tests for DiceExpr evaluation ====
 
     #[test]
@@ -679,6 +694,53 @@ mod test {
         rolls_sorted.sort_unstable();
         let expected_total = rolls_sorted[2] + 10;
         assert_eq!(result.total, expected_total);
+    }
+
+    #[test]
+    fn test_exprresult_add_preserves_order() {
+        let left = ExprResult::new(10, vec![3, 7], 0);
+        let right = ExprResult::new(15, vec![5, 10], 0);
+        let sum = left + right;
+
+        assert_eq!(sum.rolls.len(), 4);
+        assert_eq!(sum.total, 25);
+        assert_eq!(sum.modifier, 0);
+    }
+
+    #[test]
+    fn test_exprresult_negation_flips_signs() {
+        let expr = ExprResult::new(10, vec![3, 7], 5);
+        let neg = -expr;
+
+        assert_eq!(neg.total, -10);
+        assert_eq!(neg.rolls, vec![-3, -7]);
+        assert_eq!(neg.modifier, -5);
+    }
+
+    #[test]
+    fn test_exprresult_sub_uses_negation() {
+        let left = ExprResult::new(20, vec![10, 10], 0);
+        let right = ExprResult::new(5, vec![5], 0);
+        let diff = left - right;
+
+        assert_eq!(diff.total, 15);
+        assert_eq!(diff.rolls.len(), 3);
+        assert_eq!(diff.rolls, vec![10, 10, -5])
+    }
+
+    #[test]
+    fn test_deeply_nested_expressions() {
+        // Build a deeply nested expression: (((1d6 + 1) + 1) + 1) ...
+        let mut expr = DiceExpr::Roll(RollSpec::new(1, 6, None));
+        for _ in 0..10 {
+            expr = DiceExpr::Sum(Box::new(expr), Box::new(DiceExpr::Literal(1)));
+        }
+
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(42));
+        let result = roller.roll_expr(&expr).unwrap();
+
+        assert_eq!(result.modifier, 10);
+        assert_eq!(result.rolls.len(), 1);
     }
 
     // ==== Tests for RollResult to ExprResult conversion ====
