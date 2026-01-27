@@ -252,12 +252,14 @@ mod test {
     use super::*;
     use rand::{self, SeedableRng, rngs::StdRng};
 
+    // ==== Tests for rolling ====
+
     #[test]
     fn test_roll() {
         let mut roller = Roller::from_rng(StdRng::seed_from_u64(12));
         let spec = RollSpec::new(2, 20, None);
 
-        let res = roller.roll_spec(&spec);
+        let res = roller.roll_spec(&spec).unwrap();
 
         assert_eq!(res.total, 10 + 9);
         if let RollDetail::Dice(dice) = res.detail {
@@ -269,7 +271,7 @@ mod test {
     fn test_0_sides() {
         let mut roller = Roller::from_rng(StdRng::seed_from_u64(42));
         let spec = RollSpec::new(3, 0, None);
-        let res = roller.roll_spec(&spec);
+        let res = roller.roll_spec(&spec).unwrap();
         assert_eq!(res.total, 3);
         assert_eq!(res.detail, RollDetail::Constant(3));
     }
@@ -279,7 +281,7 @@ mod test {
         let mut roller = Roller::from_rng(StdRng::seed_from_u64(36));
         let spec = RollSpec::new(0, 12, None);
 
-        let res = roller.roll_spec(&spec);
+        let res = roller.roll_spec(&spec).unwrap();
 
         assert_eq!(res.total, 0);
         assert_eq!(res.detail, RollDetail::Constant(0))
@@ -291,7 +293,7 @@ mod test {
         let mut roller = Roller::from_rng(StdRng::seed_from_u64(12));
 
         let spec = RollSpec::new(5, 20, Some(Keep::Highest(1)));
-        let res = roller.roll_spec(&spec);
+        let res = roller.roll_spec(&spec).unwrap();
 
         assert_eq!(res.total, 20);
         if let RollDetail::Dice(d) = res.detail {
@@ -303,7 +305,7 @@ mod test {
         // Keep Highest 2
         let mut roller = Roller::from_rng(StdRng::seed_from_u64(12));
         let spec = RollSpec::new(5, 20, Some(Keep::Highest(2)));
-        let res = roller.roll_spec(&spec);
+        let res = roller.roll_spec(&spec).unwrap();
 
         assert_eq!(res.total, 34);
         if let RollDetail::Dice(d) = res.detail {
@@ -319,7 +321,7 @@ mod test {
         let mut roller = Roller::from_rng(StdRng::seed_from_u64(12));
 
         let spec = RollSpec::new(5, 20, Some(Keep::Lowest(1)));
-        let res = roller.roll_spec(&spec);
+        let res = roller.roll_spec(&spec).unwrap();
 
         assert_eq!(res.total, 9);
         if let RollDetail::Dice(d) = res.detail {
@@ -331,7 +333,7 @@ mod test {
         // Keep Lowest 2
         let mut roller = Roller::from_rng(StdRng::seed_from_u64(12));
         let spec = RollSpec::new(5, 20, Some(Keep::Lowest(2)));
-        let res = roller.roll_spec(&spec);
+        let res = roller.roll_spec(&spec).unwrap();
 
         assert_eq!(res.total, 19);
         if let RollDetail::Dice(d) = res.detail {
@@ -341,6 +343,65 @@ mod test {
         }
     }
 
+    #[test]
+    fn test_keep_all_dice() {
+        // Keep highest/lowest equal to count (should keep all)
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(42));
+        let spec = RollSpec::new(4, 6, Some(Keep::Highest(4)));
+        let res = roller.roll_spec(&spec).unwrap();
+        if let RollDetail::Dice(d) = res.detail {
+            assert_eq!(d.len(), 4);
+        } else {
+            panic!("Expected Dice variant")
+        }
+        // Total should equal sum of all rolls
+    }
+
+    #[test]
+    fn test_keep_single_from_many() {
+        // Keep 1 from 10d20
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(42));
+        let spec = RollSpec::new(10, 20, Some(Keep::Highest(1)));
+        let res = roller.roll_spec(&spec).unwrap();
+        // Total should equal max roll
+        if let RollDetail::Dice(rolls) = &res.detail {
+            assert_eq!(rolls.len(), 10);
+            let max = rolls.iter().max().unwrap();
+            assert_eq!(res.total, *max);
+        }
+    }
+
+    #[test]
+    fn test_keep_too_many_high() {
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(42));
+        let spec = RollSpec::new(4, 20, Some(Keep::Highest(5)));
+        let res = roller.roll_spec(&spec);
+
+        match res {
+            Ok(_) => panic!("Expected Err variant"),
+            Err(e) => {
+                if !matches!(e, DiceError::InvalidSpec(_, _)) {
+                    panic!("expected `DiceError::InvdalidSpec` variant")
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_keep_too_many_low() {
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(42));
+        let spec = RollSpec::new(4, 20, Some(Keep::Lowest(5)));
+        let res = roller.roll_spec(&spec);
+
+        match res {
+            Ok(_) => panic!("Expected Err variant"),
+            Err(e) => {
+                if !matches!(e, DiceError::InvalidSpec(_, _)) {
+                    panic!("expected `DiceError::InvdalidSpec` variant")
+                }
+            }
+        }
+    }
     // ==== Tests for DiceExpr evaluation ====
 
     #[test]
@@ -654,26 +715,30 @@ mod test {
     }
 
     #[test]
-    #[should_panic = "Overflow as excpected"]
+    #[should_panic = "Overflow as expected"]
     fn test_rollresult_to_exprresult_overflow() {
         let rr = RollResult::new(u32::MAX, RollDetail::Dice(vec![u32::MAX]));
         let result = ExprResult::try_from(rr);
 
         assert!(result.is_err());
         match result.unwrap_err() {
-            DiceError::Overflow(_) => panic!("Overflow as excpected"),
+            DiceError::Overflow(_) => panic!("Overflow as expected"),
+            _ => panic!("Expected Overflow Variant"),
         }
     }
 
     #[test]
-    #[should_panic = "Overflow as excpected"]
+    #[should_panic = "Overflow as expected"]
     fn test_rollresult_to_exprresult_dice_with_overflow() {
         let rr = RollResult::new(100, RollDetail::Dice(vec![u32::MAX - 1, 2]));
         let result = ExprResult::try_from(rr);
 
         assert!(result.is_err());
         match result.unwrap_err() {
-            DiceError::Overflow(_) => panic!("Overflow as excpected"),
+            DiceError::Overflow(_) => panic!("Overflow as expected"),
+            _ => {
+                panic!("Expected Overflow variant.")
+            }
         }
     }
 
@@ -701,7 +766,7 @@ mod test {
     fn test_rollresult_from_keep_highest_preserves_detail() {
         let mut roller = Roller::from_rng(StdRng::seed_from_u64(777));
         let spec = RollSpec::new(5, 12, Some(Keep::Highest(2)));
-        let rr = roller.roll_spec(&spec);
+        let rr = roller.roll_spec(&spec).unwrap();
 
         // The detail should contain all 5 rolls
         if let RollDetail::Dice(ref rolls) = rr.detail {
