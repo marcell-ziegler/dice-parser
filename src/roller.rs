@@ -58,6 +58,7 @@ pub enum RollDetail {
 ///   sum.
 /// * `rolls`: All rolls made or used during evaluation. Subtracted rolls are negative.
 /// * `modifier`: The sum of all constant terms in the `DiceExpr`.
+#[derive(Debug, Clone)]
 pub struct ExprResult {
     pub total: i32,
     pub rolls: Vec<i32>,
