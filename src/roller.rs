@@ -180,13 +180,16 @@ impl<R: Rng> Roller<R> {
     /// * `Dice(...)`: if `spec.count > 0 && spec.sides > 0` and contains the rolled dice.
     ///
     /// # Examples
-    pub fn roll_spec(&mut self, spec: &RollSpec) -> RollResult {
+    pub fn roll_spec(&mut self, spec: &RollSpec) -> Result<RollResult, DiceError> {
         if spec.count == 0 {
-            return RollResult::new(0, RollDetail::Constant(0));
+            return Ok(RollResult::new(0, RollDetail::Constant(0)));
         }
 
         if spec.sides == 0 {
-            return RollResult::new(spec.count, RollDetail::Constant(spec.count as i32));
+            return Ok(RollResult::new(
+                spec.count,
+                RollDetail::Constant(spec.count as i32),
+            ));
         }
 
         let mut rolls = self.roll_dice(spec.sides, spec.count);
@@ -195,14 +198,31 @@ impl<R: Rng> Roller<R> {
         if let Some(keep) = &spec.keep {
             rolls.sort_unstable();
             let total: u32 = match keep {
-                Keep::Highest(n) => rolls[(rolls.len() - *n as usize)..].iter().sum(),
-                Keep::Lowest(n) => rolls[..*n as usize].iter().sum(),
+                Keep::Highest(n) => {
+                    if *n as usize > rolls.len() {
+                        return Err(DiceError::InvalidSpec(
+                            spec.clone(),
+                            String::from("tried to keep more than total amount of rolled dice"),
+                        ));
+                    }
+                    rolls[(rolls.len() - *n as usize)..].iter().sum()
+                }
+                Keep::Lowest(n) => {
+                    if *n as usize > rolls.len() {
+                        return Err(DiceError::InvalidSpec(
+                            spec.clone(),
+                            String::from("tried to keep more than total amount of rolled dice"),
+                        ));
+                    }
+
+                    rolls[..*n as usize].iter().sum()
+                }
             };
 
-            RollResult::new(total, rolled)
+            Ok(RollResult::new(total, rolled))
         } else {
             let total = rolls.iter().sum();
-            RollResult::new(total, rolled)
+            Ok(RollResult::new(total, rolled))
         }
     }
 
@@ -217,7 +237,7 @@ impl<R: Rng> Roller<R> {
         match expr {
             DiceExpr::Sum(lhs, rhs) => Ok(self.roll_expr(lhs)? + self.roll_expr(rhs)?),
             DiceExpr::Difference(lhs, rhs) => Ok(self.roll_expr(lhs)? - self.roll_expr(rhs)?),
-            DiceExpr::Roll(spec) => self.roll_spec(spec).try_into(),
+            DiceExpr::Roll(spec) => self.roll_spec(spec)?.try_into(),
             DiceExpr::Literal(lit) => Ok(ExprResult {
                 total: *lit,
                 rolls: Vec::new(),
