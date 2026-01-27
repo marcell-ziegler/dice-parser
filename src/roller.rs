@@ -320,4 +320,378 @@ mod test {
             panic!()
         }
     }
+
+    // ==== Tests for DiceExpr evaluation ====
+
+    #[test]
+    fn test_expr_literal() {
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(1));
+        let expr = DiceExpr::Literal(7);
+        let result = roller.roll_expr(&expr).unwrap();
+        assert_eq!(result.total, 7);
+        assert_eq!(result.rolls, vec![]);
+        assert_eq!(result.modifier, 7);
+    }
+
+    #[test]
+    fn test_expr_literal_negative() {
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(1));
+        let expr = DiceExpr::Literal(-15);
+        let result = roller.roll_expr(&expr).unwrap();
+        assert_eq!(result.total, -15);
+        assert_eq!(result.rolls, vec![]);
+        assert_eq!(result.modifier, -15);
+    }
+
+    #[test]
+    fn test_expr_literal_zero() {
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(1));
+        let expr = DiceExpr::Literal(0);
+        let result = roller.roll_expr(&expr).unwrap();
+        assert_eq!(result.total, 0);
+        assert_eq!(result.rolls, vec![]);
+        assert_eq!(result.modifier, 0);
+    }
+
+    #[test]
+    fn test_expr_roll_basic() {
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(42));
+        let expr = DiceExpr::Roll(RollSpec::new(2, 6, None));
+        let result = roller.roll_expr(&expr).unwrap();
+        assert_eq!(result.rolls.len(), 2);
+        assert_eq!(result.total, result.rolls.iter().sum());
+        assert_eq!(result.modifier, 0);
+        // All rolls should be in range [1, 6]
+        for roll in &result.rolls {
+            assert!(*roll >= 1 && *roll <= 6);
+        }
+    }
+
+    #[test]
+    fn test_expr_roll_d20() {
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(999));
+        let expr = DiceExpr::Roll(RollSpec::new(1, 20, None));
+        let result = roller.roll_expr(&expr).unwrap();
+        assert_eq!(result.rolls.len(), 1);
+        assert!(result.rolls[0] >= 1 && result.rolls[0] <= 20);
+        assert_eq!(result.total, result.rolls[0]);
+        assert_eq!(result.modifier, 0);
+    }
+
+    #[test]
+    fn test_expr_roll_multiple_d100() {
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(777));
+        let expr = DiceExpr::Roll(RollSpec::new(3, 100, None));
+        let result = roller.roll_expr(&expr).unwrap();
+        assert_eq!(result.rolls.len(), 3);
+        for roll in &result.rolls {
+            assert!(*roll >= 1 && *roll <= 100);
+        }
+        assert_eq!(result.total, result.rolls.iter().sum());
+    }
+
+    #[test]
+    fn test_expr_sum_literal_and_roll() {
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(100));
+        let left = DiceExpr::Roll(RollSpec::new(1, 20, None));
+        let right = DiceExpr::Literal(5);
+        let sum_expr = DiceExpr::Sum(Box::new(left), Box::new(right));
+        let result = roller.roll_expr(&sum_expr).unwrap();
+
+        // Result should be die roll + 5
+        assert_eq!(result.rolls.len(), 1);
+        assert_eq!(result.modifier, 5);
+        assert_eq!(result.total, result.rolls[0] + 5);
+    }
+
+    #[test]
+    fn test_expr_sum_multiple_literals() {
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(1));
+        let left = DiceExpr::Literal(10);
+        let right = DiceExpr::Literal(20);
+        let sum_expr = DiceExpr::Sum(Box::new(left), Box::new(right));
+        let result = roller.roll_expr(&sum_expr).unwrap();
+
+        assert_eq!(result.total, 30);
+        assert_eq!(result.rolls, vec![]);
+        assert_eq!(result.modifier, 30);
+    }
+
+    #[test]
+    fn test_expr_sum_multiple_rolls() {
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(333));
+        let left = DiceExpr::Roll(RollSpec::new(2, 6, None));
+        let right = DiceExpr::Roll(RollSpec::new(1, 8, None));
+        let sum_expr = DiceExpr::Sum(Box::new(left), Box::new(right));
+        let result = roller.roll_expr(&sum_expr).unwrap();
+
+        // Should have 3 total rolls (2 d6 + 1 d8)
+        assert_eq!(result.rolls.len(), 3);
+        assert_eq!(result.modifier, 0);
+        assert_eq!(result.total, result.rolls.iter().sum());
+    }
+
+    #[test]
+    fn test_expr_difference_roll_minus_literal() {
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(200));
+        let left = DiceExpr::Roll(RollSpec::new(1, 20, None));
+        let right = DiceExpr::Literal(5);
+        let diff_expr = DiceExpr::Difference(Box::new(left), Box::new(right));
+        let result = roller.roll_expr(&diff_expr).unwrap();
+
+        // Result should be die roll - 5
+        assert_eq!(result.rolls.len(), 1);
+        assert_eq!(result.modifier, -5);
+        assert_eq!(result.total, result.rolls[0] - 5);
+    }
+
+    #[test]
+    fn test_expr_difference_literal_minus_roll() {
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(201));
+        let left = DiceExpr::Literal(10);
+        let right = DiceExpr::Roll(RollSpec::new(1, 6, None));
+        let diff_expr = DiceExpr::Difference(Box::new(left), Box::new(right));
+        let result = roller.roll_expr(&diff_expr).unwrap();
+
+        // Result should be 10 - die roll
+        assert_eq!(result.rolls.len(), 1);
+        assert!(result.rolls[0].abs() >= 1 && result.rolls[0].abs() <= 6);
+        assert_eq!(result.total, result.modifier + result.rolls[0]);
+        assert_eq!(result.modifier, 10);
+    }
+
+    #[test]
+    fn test_expr_difference_multiple_literals() {
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(1));
+        let left = DiceExpr::Literal(50);
+        let right = DiceExpr::Literal(20);
+        let diff_expr = DiceExpr::Difference(Box::new(left), Box::new(right));
+        let result = roller.roll_expr(&diff_expr).unwrap();
+
+        assert_eq!(result.total, 30);
+        assert_eq!(result.rolls, vec![]);
+        assert_eq!(result.modifier, 30);
+    }
+
+    #[test]
+    fn test_expr_nested_sum_difference() {
+        // Evaluate (3 + 1d8) - 1d8
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(555));
+        let left = DiceExpr::Roll(RollSpec::new(1, 8, None));
+        let inner_sum = DiceExpr::Sum(Box::new(DiceExpr::Literal(3)), Box::new(left.clone()));
+        let expr = DiceExpr::Difference(Box::new(inner_sum), Box::new(left));
+        let result = roller.roll_expr(&expr).unwrap();
+
+        // Get the values rolled
+        let mut ref_rng = StdRng::seed_from_u64(555);
+        let mut rolls: Vec<i32> = (1..=2).map(|_| ref_rng.random_range(1..=8)).collect();
+
+        rolls[1] = -rolls[1];
+
+        // The two d8 rolls cancel out, leaving 3
+        assert_eq!(result.total, 3 + rolls.iter().sum::<i32>());
+        assert_eq!(result.rolls, rolls);
+        assert_eq!(result.modifier, 3);
+        assert_eq!(result.rolls.len(), 2);
+    }
+
+    #[test]
+    fn test_expr_complex_nested() {
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(666));
+        // ((2d6 + 5) - 3) + 1d4
+        let d2d6 = DiceExpr::Roll(RollSpec::new(2, 6, None));
+        let sum1 = DiceExpr::Sum(Box::new(d2d6), Box::new(DiceExpr::Literal(5)));
+        let diff = DiceExpr::Difference(Box::new(sum1), Box::new(DiceExpr::Literal(3)));
+        let d1d4 = DiceExpr::Roll(RollSpec::new(1, 4, None));
+        let final_expr = DiceExpr::Sum(Box::new(diff), Box::new(d1d4));
+
+        let result = roller.roll_expr(&final_expr).unwrap();
+
+        // Should have 3 rolls: 2 d6 + 1 d4
+        assert_eq!(result.rolls.len(), 3);
+        // Modifier should be 5 - 3 = 2
+        assert_eq!(result.modifier, 2);
+        // Total should be sum of all rolls + modifier
+        assert_eq!(
+            result.total,
+            result.rolls.iter().sum::<i32>() + result.modifier
+        );
+    }
+
+    #[test]
+    fn test_expr_keep_highest() {
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(123));
+        let expr = DiceExpr::Roll(RollSpec::new(4, 10, Some(Keep::Highest(2))));
+        let result = roller.roll_expr(&expr).unwrap();
+
+        // Should have all 4 rolls recorded
+        assert_eq!(result.rolls.len(), 4);
+        assert_eq!(result.modifier, 0);
+
+        // Total should be the sum of the 2 highest rolls
+        let mut rolls_sorted = result.rolls.clone();
+        rolls_sorted.sort_unstable();
+        let expected_total = rolls_sorted[2] + rolls_sorted[3];
+        assert_eq!(result.total, expected_total);
+    }
+
+    #[test]
+    fn test_expr_keep_lowest() {
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(124));
+        let expr = DiceExpr::Roll(RollSpec::new(4, 10, Some(Keep::Lowest(2))));
+        let result = roller.roll_expr(&expr).unwrap();
+
+        // Should have all 4 rolls recorded
+        assert_eq!(result.rolls.len(), 4);
+        assert_eq!(result.modifier, 0);
+
+        // Total should be the sum of the 2 lowest rolls
+        let mut rolls_sorted = result.rolls.clone();
+        rolls_sorted.sort_unstable();
+        let expected_total = rolls_sorted[0] + rolls_sorted[1];
+        assert_eq!(result.total, expected_total);
+    }
+
+    #[test]
+    fn test_expr_keep_highest_with_sum() {
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(125));
+        let keep_roll = DiceExpr::Roll(RollSpec::new(3, 6, Some(Keep::Highest(1))));
+        let literal = DiceExpr::Literal(10);
+        let expr = DiceExpr::Sum(Box::new(keep_roll), Box::new(literal));
+        let result = roller.roll_expr(&expr).unwrap();
+
+        // Should have 3 rolls (all rolls are recorded)
+        assert_eq!(result.rolls.len(), 3);
+        assert_eq!(result.modifier, 10);
+
+        // The total should be the highest roll + 10
+        let mut rolls_sorted = result.rolls.clone();
+        rolls_sorted.sort_unstable();
+        let expected_total = rolls_sorted[2] + 10;
+        assert_eq!(result.total, expected_total);
+    }
+
+    // ==== Tests for RollResult to ExprResult conversion ====
+
+    #[test]
+    fn test_rollresult_to_exprresult_constant_positive() {
+        let rr = RollResult::new(42, RollDetail::Constant(42));
+        let expr_result = ExprResult::try_from(rr).unwrap();
+
+        assert_eq!(expr_result.total, 42);
+        assert_eq!(expr_result.rolls, vec![]);
+        assert_eq!(expr_result.modifier, 42);
+    }
+
+    #[test]
+    fn test_rollresult_to_exprresult_constant_negative() {
+        let rr = RollResult::new(5, RollDetail::Constant(-20));
+        let expr_result = ExprResult::try_from(rr).unwrap();
+
+        assert_eq!(expr_result.total, 5);
+        assert_eq!(expr_result.rolls, vec![]);
+        assert_eq!(expr_result.modifier, -20);
+    }
+
+    #[test]
+    fn test_rollresult_to_exprresult_constant_zero() {
+        let rr = RollResult::new(0, RollDetail::Constant(0));
+        let expr_result = ExprResult::try_from(rr).unwrap();
+
+        assert_eq!(expr_result.total, 0);
+        assert_eq!(expr_result.rolls, vec![]);
+        assert_eq!(expr_result.modifier, 0);
+    }
+
+    #[test]
+    fn test_rollresult_to_exprresult_dice_simple() {
+        let rr = RollResult::new(9, RollDetail::Dice(vec![4, 5]));
+        let expr_result = ExprResult::try_from(rr).unwrap();
+
+        assert_eq!(expr_result.total, 9);
+        assert_eq!(expr_result.rolls, vec![4, 5]);
+        assert_eq!(expr_result.modifier, 0);
+    }
+
+    #[test]
+    fn test_rollresult_to_exprresult_dice_multiple() {
+        let rr = RollResult::new(21, RollDetail::Dice(vec![3, 7, 5, 6]));
+        let expr_result = ExprResult::try_from(rr).unwrap();
+
+        assert_eq!(expr_result.total, 21);
+        assert_eq!(expr_result.rolls, vec![3, 7, 5, 6]);
+        assert_eq!(expr_result.modifier, 0);
+    }
+
+    #[test]
+    fn test_rollresult_to_exprresult_dice_single() {
+        let rr = RollResult::new(12, RollDetail::Dice(vec![12]));
+        let expr_result = ExprResult::try_from(rr).unwrap();
+
+        assert_eq!(expr_result.total, 12);
+        assert_eq!(expr_result.rolls, vec![12]);
+        assert_eq!(expr_result.modifier, 0);
+    }
+
+    #[test]
+    #[should_panic = "Overflow as excpected"]
+    fn test_rollresult_to_exprresult_overflow() {
+        let rr = RollResult::new(u32::MAX, RollDetail::Dice(vec![u32::MAX]));
+        let result = ExprResult::try_from(rr);
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DiceError::Overflow(_) => panic!("Overflow as excpected"),
+        }
+    }
+
+    #[test]
+    #[should_panic = "Overflow as excpected"]
+    fn test_rollresult_to_exprresult_dice_with_overflow() {
+        let rr = RollResult::new(100, RollDetail::Dice(vec![u32::MAX - 1, 2]));
+        let result = ExprResult::try_from(rr);
+
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            DiceError::Overflow(_) => panic!("Overflow as excpected"),
+        }
+    }
+
+    #[test]
+    fn test_rollresult_to_exprresult_empty_dice() {
+        let rr = RollResult::new(0, RollDetail::Dice(vec![]));
+        let expr_result = ExprResult::try_from(rr).unwrap();
+
+        assert_eq!(expr_result.total, 0);
+        assert_eq!(expr_result.rolls, vec![]);
+        assert_eq!(expr_result.modifier, 0);
+    }
+
+    #[test]
+    fn test_rollresult_to_exprresult_large_valid_values() {
+        let rr = RollResult::new(1000, RollDetail::Dice(vec![200, 300, 500]));
+        let expr_result = ExprResult::try_from(rr).unwrap();
+
+        assert_eq!(expr_result.total, 1000);
+        assert_eq!(expr_result.rolls, vec![200, 300, 500]);
+        assert_eq!(expr_result.modifier, 0);
+    }
+
+    #[test]
+    fn test_rollresult_from_keep_highest_preserves_detail() {
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(777));
+        let spec = RollSpec::new(5, 12, Some(Keep::Highest(2)));
+        let rr = roller.roll_spec(&spec);
+
+        // The detail should contain all 5 rolls
+        if let RollDetail::Dice(ref rolls) = rr.detail {
+            assert_eq!(rolls.len(), 5);
+        } else {
+            panic!("Expected Dice variant");
+        }
+
+        let expr_result = ExprResult::try_from(rr).unwrap();
+        // ExprResult should have all 5 rolls, even though total only includes 2
+        assert_eq!(expr_result.rolls.len(), 5);
+    }
 }
