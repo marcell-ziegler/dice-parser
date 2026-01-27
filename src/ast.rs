@@ -3,6 +3,7 @@ use crate::{
     roller::{ExprResult, Roller},
 };
 
+#[derive(Debug, Clone)]
 pub enum DiceExpr {
     Sum(Box<DiceExpr>, Box<DiceExpr>),
     Difference(Box<DiceExpr>, Box<DiceExpr>),
@@ -16,6 +17,8 @@ impl DiceExpr {
         roller.roll_expr(self)
     }
 }
+
+#[derive(Debug, Clone)]
 pub struct RollSpec {
     pub count: u32,
     pub sides: u32,
@@ -28,6 +31,7 @@ impl RollSpec {
     }
 }
 
+#[derive(Debug, Clone)]
 pub enum Keep {
     Highest(u32),
     Lowest(u32),

@@ -28,6 +28,7 @@ impl Default for Roller<ThreadRng> {
 ///
 /// * `total`: The sum of the rolls
 /// * `detail`: A `RollDetail` containing the terms that made the `total`.
+#[derive(Debug, Clone)]
 pub struct RollResult {
     pub total: u32,
     pub detail: RollDetail,
@@ -44,7 +45,7 @@ impl RollResult {
 ///   the order they were rolled.
 /// * `Constant(i32)`: The roll was a constant value, and no rng was done. The i32 contains that
 ///   value.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RollDetail {
     Dice(Vec<u32>),
     Constant(i32),
