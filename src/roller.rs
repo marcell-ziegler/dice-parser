@@ -402,6 +402,35 @@ mod test {
             }
         }
     }
+
+    #[test]
+    fn test_keep_too_few_high() {
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(42));
+        let spec = RollSpec::new(6, 8, Some(Keep::Highest(0)));
+        let res = roller.roll_spec(&spec).unwrap();
+
+        assert_eq!(res.total, 0);
+        if let RollDetail::Dice(d) = &res.detail {
+            assert_eq!(d.len(), 6);
+        } else {
+            panic!("expected Dice variant")
+        }
+    }
+
+    #[test]
+    fn test_keep_too_few_low() {
+        let mut roller = Roller::from_rng(StdRng::seed_from_u64(42));
+        let spec = RollSpec::new(4, 12, Some(Keep::Lowest(0)));
+        let res = roller.roll_spec(&spec).unwrap();
+
+        assert_eq!(res.total, 0);
+        if let RollDetail::Dice(d) = &res.detail {
+            assert_eq!(d.len(), 4);
+        } else {
+            panic!("expected Dice variant")
+        }
+    }
+
     // ==== Tests for DiceExpr evaluation ====
 
     #[test]
