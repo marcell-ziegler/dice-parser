@@ -21,6 +21,10 @@ pub enum DiceError {
         stop: Option<usize>,
         expected: Option<String>,
     },
+    TrailingInput {
+        input: String,
+        pos: usize,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -101,6 +105,13 @@ impl Display for DiceError {
                 } else {
                     write!(f, "{}", indicator)
                 }
+            }
+            DiceError::TrailingInput { input, pos } => {
+                writeln!(f, "trailing input encountered in expression:")?;
+                writeln!(f, "{}", input)?;
+                let mut indicator = " ".repeat(*pos);
+                indicator.push_str(&("^".repeat(input.chars().count() - pos)));
+                write!(f, "{}", indicator)
             }
         }
     }
