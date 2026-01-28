@@ -6,6 +6,18 @@ use crate::ast::RollSpec;
 pub enum DiceError {
     Overflow(String),
     InvalidSpec(RollSpec, String),
+    ParseError {
+        kind: ParseErrorKind,
+        input: String,
+        start: usize,
+        stop: Option<usize>,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub enum ParseErrorKind {
+    ExpectedNumber,
+    InvalidNumber,
 }
 
 impl std::error::Error for DiceError {}
@@ -17,6 +29,33 @@ impl Display for DiceError {
             DiceError::InvalidSpec(spec, msg) => {
                 write!(f, "invalid RollSpec error: {}, {:?}", msg, spec)
             }
+            DiceError::ParseError {
+                kind,
+                input,
+                start,
+                stop,
+            } => match kind {
+                ParseErrorKind::ExpectedNumber => {
+                    writeln!(f, "expected number in input, found nothing here:")?;
+                    writeln!(f, "{}", input)?;
+                    let mut indicator: String = " ".repeat(*start);
+                    match stop {
+                        Some(i) => indicator.push_str(&("^".repeat(i - start))),
+                        None => indicator.push('^'),
+                    }
+                    write!(f, "{}", indicator)
+                }
+                ParseErrorKind::InvalidNumber => {
+                    writeln!(f, "invalid number in input, parse errored here:")?;
+                    writeln!(f, "{}", input)?;
+                    let mut indicator: String = " ".repeat(*start);
+                    match stop {
+                        Some(i) => indicator.push_str(&("^".repeat(i - start))),
+                        None => indicator.push('^'),
+                    }
+                    write!(f, "{}", indicator)
+                }
+            },
         }
     }
 }
