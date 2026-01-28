@@ -1,8 +1,11 @@
-use std::{fmt::Display, num::TryFromIntError};
+use std::{
+    fmt::{Debug, Display, Formatter},
+    num::TryFromIntError,
+};
 
 use crate::ast::RollSpec;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum DiceError {
     Overflow(String),
     InvalidSpec(RollSpec, String),
@@ -22,6 +25,12 @@ pub enum ParseErrorKind {
 
 impl std::error::Error for DiceError {}
 
+impl Debug for DiceError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(self, f)
+    }
+}
+
 impl Display for DiceError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -40,7 +49,7 @@ impl Display for DiceError {
                     writeln!(f, "{}", input)?;
                     let mut indicator: String = " ".repeat(*start);
                     match stop {
-                        Some(i) => indicator.push_str(&("^".repeat(i - start))),
+                        Some(i) => indicator.push_str(&("^".repeat((i - start).max(1)))),
                         None => indicator.push('^'),
                     }
                     write!(f, "{}", indicator)
@@ -50,7 +59,7 @@ impl Display for DiceError {
                     writeln!(f, "{}", input)?;
                     let mut indicator: String = " ".repeat(*start);
                     match stop {
-                        Some(i) => indicator.push_str(&("^".repeat(i - start))),
+                        Some(i) => indicator.push_str(&("^".repeat((i - start).max(1)))),
                         None => indicator.push('^'),
                     }
                     write!(f, "{}", indicator)
