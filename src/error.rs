@@ -26,7 +26,8 @@ pub enum DiceError {
 #[derive(Debug, Clone)]
 pub enum ParseErrorKind {
     ExpectedNumber,
-    InvalidNumber,
+    InvalidI32,
+    InvalidU32,
 }
 
 impl std::error::Error for DiceError {}
@@ -60,8 +61,18 @@ impl Display for DiceError {
                     }
                     write!(f, "{}", indicator)
                 }
-                ParseErrorKind::InvalidNumber => {
-                    writeln!(f, "invalid number in input, parse errored here:")?;
+                ParseErrorKind::InvalidU32 => {
+                    writeln!(f, "invalid u32 literal in input, parse errored here:")?;
+                    writeln!(f, "{}", input)?;
+                    let mut indicator: String = " ".repeat(*start);
+                    match stop {
+                        Some(i) => indicator.push_str(&("^".repeat((i - start).max(1)))),
+                        None => indicator.push('^'),
+                    }
+                    write!(f, "{}", indicator)
+                }
+                ParseErrorKind::InvalidI32 => {
+                    writeln!(f, "invalid i32 literal in input, parse errored here:")?;
                     writeln!(f, "{}", input)?;
                     let mut indicator: String = " ".repeat(*start);
                     match stop {
@@ -86,9 +97,9 @@ impl Display for DiceError {
                 }
                 if let Some(exp) = expected {
                     writeln!(f, "{}", indicator)?;
-                    return write!(f, "expected: {}", exp);
+                    write!(f, "expected: {}", exp)
                 } else {
-                    return write!(f, "{}", indicator);
+                    write!(f, "{}", indicator)
                 }
             }
         }
