@@ -15,6 +15,12 @@ pub enum DiceError {
         start: usize,
         stop: Option<usize>,
     },
+    SyntaxError {
+        input: String,
+        start: usize,
+        stop: Option<usize>,
+        expected: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -65,6 +71,26 @@ impl Display for DiceError {
                     write!(f, "{}", indicator)
                 }
             },
+            DiceError::SyntaxError {
+                input,
+                start,
+                stop,
+                expected,
+            } => {
+                writeln!(f, "syntax error in dice expression here:")?;
+                writeln!(f, "{}", input)?;
+                let mut indicator = " ".repeat(*start);
+                match stop {
+                    Some(i) => indicator.push_str(&("^".repeat((i - start).max(1)))),
+                    None => indicator.push('^'),
+                }
+                if let Some(exp) = expected {
+                    writeln!(f, "{}", indicator)?;
+                    return write!(f, "expected: {}", exp);
+                } else {
+                    return write!(f, "{}", indicator);
+                }
+            }
         }
     }
 }
