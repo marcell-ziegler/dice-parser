@@ -186,7 +186,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod test {
-    use crate::parser::Parser;
+    use crate::{ast::DiceExpr, parser::Parser, roller::Roller};
 
     #[test]
     fn test_new_parser() {
@@ -273,5 +273,140 @@ mod test {
 
         let mut p = Parser::new("-abc");
         assert!(p.parse_i32().is_err());
+    }
+
+    #[test]
+    fn test_parse_term_literal() {
+        let mut parser = Parser::new("42");
+        let result = parser.parse_term().unwrap();
+        if let DiceExpr::Literal(value) = result {
+            assert_eq!(value, 42);
+        } else {
+            panic!("Expected a DiceExpr::Literal, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_parse_term_roll() {
+        let mut parser = Parser::new("2d6");
+        let result = parser.parse_term().unwrap();
+        if let DiceExpr::Roll(roll_spec) = result {
+            assert_eq!(roll_spec.count, 2);
+            assert_eq!(roll_spec.sides, 6);
+            assert_eq!(roll_spec.keep, None);
+        } else {
+            panic!("Expected a DiceExpr::Roll, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_parse_term_invalid_dice_count() {
+        let mut parser = Parser::new("-2d6");
+        let result = parser.parse_term();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_expr_sum() {
+        let mut parser = Parser::new("5d6 + 3");
+        let result = parser.parse_expr().unwrap();
+        if let DiceExpr::Sum(lhs, rhs) = result {
+            if let DiceExpr::Roll(roll_spec) = *lhs {
+                assert_eq!(roll_spec.count, 5);
+                assert_eq!(roll_spec.sides, 6);
+            } else {
+                panic!("Expected left operand to be DiceExpr::Roll, got {:?}", lhs);
+            }
+
+            if let DiceExpr::Literal(value) = *rhs {
+                assert_eq!(value, 3);
+            } else {
+                panic!(
+                    "Expected right operand to be DiceExpr::Literal, got {:?}",
+                    rhs
+                );
+            }
+        } else {
+            panic!("Expected a DiceExpr::Sum, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_parse_expr_difference() {
+        let mut parser = Parser::new("10 - 2d6");
+        let result = parser.parse_expr().unwrap();
+        if let DiceExpr::Difference(lhs, rhs) = result {
+            if let DiceExpr::Literal(value) = *lhs {
+                assert_eq!(value, 10);
+            } else {
+                panic!(
+                    "Expected left operand to be DiceExpr::Literal, got {:?}",
+                    lhs
+                );
+            }
+
+            if let DiceExpr::Roll(roll_spec) = *rhs {
+                assert_eq!(roll_spec.count, 2);
+                assert_eq!(roll_spec.sides, 6);
+            } else {
+                panic!("Expected right operand to be DiceExpr::Roll, got {:?}", rhs);
+            }
+        } else {
+            panic!("Expected a DiceExpr::Difference, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_assosciativity() {
+        let mut parser = Parser::new("7 - 3 + 2 - 2");
+        let result = parser.parse_expr().unwrap();
+        let mut r = Roller::default();
+        let diff = r.roll_expr(&result).unwrap();
+
+        assert_eq!(diff.total, 4)
+    }
+
+    #[test]
+    fn test_parse_expr_nested() {
+        let mut parser = Parser::new("2d6 + 3 - 1");
+        let result = parser.parse_expr().unwrap();
+        if let DiceExpr::Difference(lhs, rhs) = result {
+            if let DiceExpr::Sum(lhs_inner, rhs_inner) = *lhs {
+                if let DiceExpr::Roll(roll_spec) = *lhs_inner {
+                    assert_eq!(roll_spec.count, 2);
+                    assert_eq!(roll_spec.sides, 6);
+                } else {
+                    panic!(
+                        "Expected left inner operand to be DiceExpr::Roll, got {:?}",
+                        lhs_inner
+                    );
+                }
+
+                if let DiceExpr::Literal(value) = *rhs_inner {
+                    assert_eq!(value, 3);
+                } else {
+                    panic!(
+                        "Expected right inner operand to be DiceExpr::Literal, got {:?}",
+                        rhs_inner
+                    );
+                }
+            } else {
+                panic!(
+                    "Expected left outer operand to be DiceExpr::Sum, got {:?}",
+                    lhs
+                );
+            }
+
+            if let DiceExpr::Literal(value) = *rhs {
+                assert_eq!(value, 1);
+            } else {
+                panic!(
+                    "Expected right outer operand to be DiceExpr::Literal, got {:?}",
+                    rhs
+                );
+            }
+        } else {
+            panic!("Expected a DiceExpr::Difference, got {:?}", result);
+        }
     }
 }

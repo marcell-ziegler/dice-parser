@@ -1,5 +1,8 @@
+use std::str::FromStr;
+
 use crate::{
     error::DiceError,
+    parser::Parser,
     roller::{ExprResult, Roller},
 };
 
@@ -11,10 +14,21 @@ pub enum DiceExpr {
     Literal(i32),
 }
 
+impl FromStr for DiceExpr {
+    type Err = DiceError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut parser = Parser::new(s);
+        parser.parse()
+    }
+}
+
 impl DiceExpr {
     pub fn roll(&self) -> Result<ExprResult, DiceError> {
         let mut roller = Roller::default();
         roller.roll_expr(self)
+    }
+    pub fn parse(input: &str) -> Result<DiceExpr, DiceError> {
+        DiceExpr::from_str(input)
     }
 }
 
@@ -31,7 +45,7 @@ impl RollSpec {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Keep {
     Highest(u32),
     Lowest(u32),
