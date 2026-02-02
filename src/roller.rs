@@ -129,8 +129,8 @@ impl RollResult {
 ///
 /// * `Dice(Vec<u32>)`: The roll was based on dice, and the `Vec<u32>` are their individual rolls in
 ///   the order they were rolled.
-/// * `Constant(i32)`: The roll was a constant value, and no RNG was used. The `i32` contains that
-///   value.
+/// * `Constant(i32)`: The roll was a constant value (e.g., from a 0-sided die where the count
+///   becomes the constant value), and no RNG was used.
 ///
 /// # Examples
 ///
@@ -150,7 +150,7 @@ impl RollResult {
 ///     _ => panic!("Expected dice rolls"),
 /// }
 ///
-/// // A 0-sided die produces RollDetail::Constant
+/// // A 0-sided die produces RollDetail::Constant with the count as the value
 /// let spec = RollSpec::new(5, 0, None);
 /// let result = roller.roll_spec(&spec).unwrap();
 /// assert_eq!(result.detail, RollDetail::Constant(5));

@@ -7,7 +7,7 @@
 //! - Basic dice notation (e.g., `2d6`, `1d20`)
 //! - Arithmetic operations (addition and subtraction)
 //! - Literal values
-//! - Keep highest/lowest mechanics (future feature)
+//! - Keep highest/lowest mechanics
 //!
 //! ## Quick Start
 //!
