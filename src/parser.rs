@@ -1,14 +1,70 @@
+//! Parser for dice notation strings.
+//!
+//! This module provides the [`Parser`] type for converting dice notation strings
+//! into [`DiceExpr`](crate::DiceExpr) AST nodes.
+//!
+//! # Supported Syntax
+//!
+//! - Dice rolls: `NdS` (e.g., `2d6`, `1d20`)
+//! - Literals: Any integer (e.g., `5`, `-3`)
+//! - Addition: `expr + expr`
+//! - Subtraction: `expr - expr`
+//!
+//! # Examples
+//!
+//! ```
+//! use dice_parser::Parser;
+//!
+//! let mut parser = Parser::new("2d6 + 3");
+//! let expr = parser.parse().unwrap();
+//! ```
+
 use crate::{
     ast::{DiceExpr, RollSpec},
     error::{DiceError, ParseErrorKind},
 };
 
+/// A parser for dice notation strings.
+///
+/// The parser converts string input like `"2d6 + 3"` into a [`DiceExpr`](crate::DiceExpr) AST
+/// that can be evaluated.
+///
+/// # Examples
+///
+/// ```
+/// use dice_parser::Parser;
+///
+/// let mut parser = Parser::new("2d6 + 3");
+/// let expr = parser.parse().unwrap();
+/// let result = expr.roll().unwrap();
+/// ```
+///
+/// # Syntax
+///
+/// The parser recognizes:
+/// - **Dice rolls**: `NdS` where N is the count and S is the number of sides (e.g., `2d6`)
+/// - **Literals**: Integer constants (e.g., `5`, `-3`)
+/// - **Addition**: `expr + expr`
+/// - **Subtraction**: `expr - expr`
+/// - **Whitespace**: Ignored anywhere in the input
+///
+/// Operator precedence: Dice rolls and literals are parsed first, then left-to-right
+/// evaluation of addition and subtraction (same precedence).
 pub struct Parser<'a> {
     input: &'a str,
     byte_pos: usize,
 }
 
 impl<'a> Parser<'a> {
+    /// Create a new parser for the given input string.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use dice_parser::Parser;
+    ///
+    /// let parser = Parser::new("1d20 + 5");
+    /// ```
     pub fn new(input: &'a str) -> Self {
         Self { input, byte_pos: 0 }
     }
@@ -169,7 +225,42 @@ impl<'a> Parser<'a> {
         Ok(node)
     }
 
-    /// Try to parse the input into a `DiceExpr`
+    /// Parse the input string into a `DiceExpr`.
+    ///
+    /// This is the main entry point for parsing. It consumes the entire input and returns
+    /// the resulting expression AST.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use dice_parser::Parser;
+    ///
+    /// // Simple dice roll
+    /// let mut parser = Parser::new("2d6");
+    /// let expr = parser.parse().unwrap();
+    /// ```
+    ///
+    /// ```
+    /// use dice_parser::Parser;
+    ///
+    /// // Complex expression
+    /// let mut parser = Parser::new("1d20 + 1d6 + 5");
+    /// let expr = parser.parse().unwrap();
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`DiceError`](crate::DiceError) if:
+    /// - The input contains invalid syntax
+    /// - A number literal is out of range for i32/u32
+    /// - There is trailing input after a valid expression
+    ///
+    /// ```
+    /// use dice_parser::Parser;
+    ///
+    /// let mut parser = Parser::new("2d6 invalid");
+    /// assert!(parser.parse().is_err());
+    /// ```
     pub fn parse(&mut self) -> Result<DiceExpr, DiceError> {
         let expr = self.parse_expr()?;
         self.skip_ws();

@@ -6,6 +6,11 @@ license-file = "LICENSE"
 description = "A parser and roller for standard RPG dice notation."
 repository = "https://github.com/marcell-ziegler/dice-parser"
 readme = "README.md"
+keywords = ["dice", "rpg", "parser", "random", "games"]
+categories = ["parser-implementations", "games"]
+
+[package.metadata.docs.rs]
+all-features = true
 
 [dependencies]
 rand = "0.9.2"

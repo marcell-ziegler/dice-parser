@@ -1,4 +1,27 @@
-//! All rng and rolling logic.
+//! Dice rolling logic and random number generation.
+//!
+//! This module contains types and functions for evaluating dice expressions and generating
+//! random numbers. It supports custom random number generators through the [`Roller`] type.
+//!
+//! # Examples
+//!
+//! ```
+//! use dice_parser::{Roller, RollSpec};
+//!
+//! // Use the default roller
+//! let mut roller = Roller::default();
+//! let spec = RollSpec::new(2, 6, None);
+//! let result = roller.roll_spec(&spec).unwrap();
+//! println!("Rolled: {}", result.total);
+//! ```
+//!
+//! ```
+//! use dice_parser::Roller;
+//! use rand::{SeedableRng, rngs::StdRng};
+//!
+//! // Use a custom seeded RNG for reproducible results
+//! let mut roller = Roller::from_rng(StdRng::seed_from_u64(42));
+//! ```
 
 use std::{
     num::TryFromIntError,
@@ -11,9 +34,32 @@ use crate::{
 };
 use rand::{Rng, rngs::ThreadRng};
 
-/// An rng for rolling dice.
+/// A dice roller with a configurable random number generator.
 ///
-/// * `rng`: The rng base which is `rand::Rng`.
+/// `Roller` encapsulates the random number generation logic for rolling dice. It can use
+/// any type that implements [`rand::Rng`].
+///
+/// # Examples
+///
+/// Using the default roller (with `ThreadRng`):
+///
+/// ```
+/// use dice_parser::{Roller, RollSpec};
+///
+/// let mut roller = Roller::default();
+/// let spec = RollSpec::new(2, 6, None);
+/// let result = roller.roll_spec(&spec).unwrap();
+/// assert!(result.total >= 2 && result.total <= 12);
+/// ```
+///
+/// Using a custom RNG for reproducible results:
+///
+/// ```
+/// use dice_parser::Roller;
+/// use rand::{SeedableRng, rngs::StdRng};
+///
+/// let mut roller = Roller::from_rng(StdRng::seed_from_u64(12345));
+/// ```
 pub struct Roller<R: Rng> {
     rng: R,
 }
@@ -24,44 +70,135 @@ impl Default for Roller<ThreadRng> {
     }
 }
 
-/// Representation of the result of rolling 0 or more dice. Note that a 0-sided dice is interpreted
-/// as a constant. See also `dice-parser::ast::DiceExpr::roll()`.
+/// The result of rolling one or more dice.
 ///
-/// * `total`: The sum of the rolls
-/// * `detail`: A `RollDetail` containing the terms that made the `total`.
+/// `RollResult` contains both the total value and details about what was rolled.
+/// A 0-sided die is interpreted as a constant value.
+///
+/// # Examples
+///
+/// ```
+/// use dice_parser::{Roller, RollSpec};
+///
+/// let mut roller = Roller::default();
+/// let spec = RollSpec::new(2, 6, None);
+/// let result = roller.roll_spec(&spec).unwrap();
+///
+/// // Access the total
+/// println!("Total: {}", result.total);
+///
+/// // Access the individual rolls (if dice were rolled)
+/// match result.detail {
+///     dice_parser::RollDetail::Dice(rolls) => {
+///         println!("Individual rolls: {:?}", rolls);
+///     }
+///     dice_parser::RollDetail::Constant(val) => {
+///         println!("Constant value: {}", val);
+///     }
+/// }
+/// ```
+///
+/// # Fields
+///
+/// * `total` - The sum of the rolls (or the constant value)
+/// * `detail` - A [`RollDetail`] containing what was rolled
 #[derive(Debug, Clone)]
 pub struct RollResult {
+    /// The total value of the roll.
     pub total: u32,
+    /// Details about what was rolled.
     pub detail: RollDetail,
 }
 impl RollResult {
+    /// Create a new `RollResult`.
+    ///
+    /// # Arguments
+    ///
+    /// * `total` - The total value of the roll
+    /// * `detail` - The details of what was rolled
     pub fn new(total: u32, detail: RollDetail) -> Self {
         RollResult { total, detail }
     }
 }
 
-/// Represents the dice or constant of a `RollResult`.
+/// Details about what was rolled or used in a roll.
 ///
-/// * `Dice(Vec<u32>)`: The roll was based on dice, and the Vec<u32> are their individual rolls in
+/// This enum distinguishes between actual dice rolls and constant values.
+///
+/// # Variants
+///
+/// * `Dice(Vec<u32>)`: The roll was based on dice, and the `Vec<u32>` are their individual rolls in
 ///   the order they were rolled.
-/// * `Constant(i32)`: The roll was a constant value, and no rng was done. The i32 contains that
+/// * `Constant(i32)`: The roll was a constant value, and no RNG was used. The `i32` contains that
 ///   value.
+///
+/// # Examples
+///
+/// ```
+/// use dice_parser::{RollDetail, Roller, RollSpec};
+///
+/// let mut roller = Roller::default();
+///
+/// // Rolling dice produces RollDetail::Dice
+/// let spec = RollSpec::new(2, 6, None);
+/// let result = roller.roll_spec(&spec).unwrap();
+/// match result.detail {
+///     RollDetail::Dice(rolls) => {
+///         assert_eq!(rolls.len(), 2);
+///         println!("Rolled: {:?}", rolls);
+///     }
+///     _ => panic!("Expected dice rolls"),
+/// }
+///
+/// // A 0-sided die produces RollDetail::Constant
+/// let spec = RollSpec::new(5, 0, None);
+/// let result = roller.roll_spec(&spec).unwrap();
+/// assert_eq!(result.detail, RollDetail::Constant(5));
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RollDetail {
     Dice(Vec<u32>),
     Constant(i32),
 }
 
-/// The result of a whole `DiceExpr`.
+/// The result of evaluating a complete dice expression.
 ///
-/// * `total`: The sum of all rolls and modifiers. Subtracted rolls are treated as negative in the
-///   sum.
-/// * `rolls`: All rolls made or used during evaluation. Subtracted rolls are negative.
-/// * `modifier`: The sum of all constant terms in the `DiceExpr`.
+/// `ExprResult` contains the final total, all individual dice rolls, and any modifiers
+/// from the expression.
+///
+/// # Fields
+///
+/// * `total` - The sum of all rolls and modifiers. Subtracted rolls are treated as negative.
+/// * `rolls` - All dice rolled during evaluation. Subtracted rolls are negative.
+/// * `modifier` - The sum of all constant terms in the expression.
+///
+/// # Examples
+///
+/// ```
+/// use dice_parser::Parser;
+///
+/// let mut parser = Parser::new("2d6 + 3");
+/// let expr = parser.parse().unwrap();
+/// let result = expr.roll().unwrap();
+///
+/// println!("Total: {}", result.total);
+/// println!("Dice rolls: {:?}", result.rolls);
+/// println!("Modifier: {}", result.modifier);
+///
+/// // For "2d6 + 3":
+/// // - rolls will contain 2 values (the 2d6)
+/// // - modifier will be 3
+/// // - total will be sum of rolls + 3
+/// assert_eq!(result.rolls.len(), 2);
+/// assert_eq!(result.modifier, 3);
+/// ```
 #[derive(Debug, Clone)]
 pub struct ExprResult {
+    /// The total value of the expression.
     pub total: i32,
+    /// All dice rolls. Subtracted dice are negative.
     pub rolls: Vec<i32>,
+    /// The sum of all constant modifiers.
     pub modifier: i32,
 }
 
@@ -117,6 +254,13 @@ impl Sub<ExprResult> for ExprResult {
 }
 
 impl ExprResult {
+    /// Create a new `ExprResult`.
+    ///
+    /// # Arguments
+    ///
+    /// * `total` - The total value
+    /// * `rolls` - The dice rolls
+    /// * `modifier` - The modifier value
     pub fn new(total: i32, rolls: Vec<i32>, modifier: i32) -> Self {
         ExprResult {
             total,
@@ -127,9 +271,22 @@ impl ExprResult {
 }
 
 impl<R: Rng> Roller<R> {
-    /// Instantiate a `Roller` from a custom `rand::Rng` object.
+    /// Create a `Roller` with a custom random number generator.
     ///
-    /// * `rng`: The `rand::Rng` object to be used as the generator.
+    /// # Arguments
+    ///
+    /// * `rng` - The random number generator to use (must implement [`rand::Rng`])
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use dice_parser::Roller;
+    /// use rand::{SeedableRng, rngs::StdRng};
+    ///
+    /// // Create a roller with a seeded RNG for reproducible results
+    /// let rng = StdRng::seed_from_u64(42);
+    /// let mut roller = Roller::from_rng(rng);
+    /// ```
     pub fn from_rng(rng: R) -> Self {
         Roller { rng }
     }
@@ -169,17 +326,50 @@ impl<R: Rng> Roller<R> {
             .collect()
     }
 
-    /// Evaluate a `RollSpec`.
+    /// Roll dice according to a `RollSpec`.
     ///
-    /// * `spec`: the `dice-parser::ast::RollSpec` to be rolled.
+    /// This method evaluates a roll specification and returns the result.
+    ///
+    /// # Arguments
+    ///
+    /// * `spec` - The roll specification to evaluate
     ///
     /// # Returns
-    /// Except the self-evident totals (where)
-    /// * `Constant(0)`: if `spec.count == 0`
-    /// * `Constant(spec.count)`: if `spec.sides == 0`
-    /// * `Dice(...)`: if `spec.count > 0 && spec.sides > 0` and contains the rolled dice.
+    ///
+    /// Returns a [`RollResult`] containing:
+    /// * `Constant(0)` if `spec.count == 0`
+    /// * `Constant(spec.count)` if `spec.sides == 0` (treating the count as a constant)
+    /// * `Dice(...)` if `spec.count > 0 && spec.sides > 0` (containing the rolled dice)
+    ///
+    /// When `keep` is specified, all dice are rolled but only the kept dice count toward the total.
     ///
     /// # Examples
+    ///
+    /// ```
+    /// use dice_parser::{Roller, RollSpec};
+    ///
+    /// let mut roller = Roller::default();
+    ///
+    /// // Roll 2d6
+    /// let spec = RollSpec::new(2, 6, None);
+    /// let result = roller.roll_spec(&spec).unwrap();
+    /// assert!(result.total >= 2 && result.total <= 12);
+    /// ```
+    ///
+    /// ```
+    /// use dice_parser::{Roller, RollSpec, Keep};
+    ///
+    /// let mut roller = Roller::default();
+    ///
+    /// // Roll 4d6, keep highest 3
+    /// let spec = RollSpec::new(4, 6, Some(Keep::Highest(3)));
+    /// let result = roller.roll_spec(&spec).unwrap();
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns [`DiceError::InvalidSpec`](crate::DiceError::InvalidSpec) if trying to keep
+    /// more dice than were rolled.
     pub fn roll_spec(&mut self, spec: &RollSpec) -> Result<RollResult, DiceError> {
         if spec.count == 0 {
             return Ok(RollResult::new(0, RollDetail::Constant(0)));
@@ -226,13 +416,41 @@ impl<R: Rng> Roller<R> {
         }
     }
 
-    /// Evaluate a DiceExpr.
+    /// Evaluate a complete dice expression.
     ///
-    /// * `expr`: The epression to be evaluated.
+    /// This method recursively evaluates a [`DiceExpr`] AST and returns the result.
+    ///
+    /// # Arguments
+    ///
+    /// * `expr` - The expression to evaluate
     ///
     /// # Returns
-    /// * `Ok(ExprResult)` if successful.
-    /// * `Err(DiceError)` if evaluation failed.
+    ///
+    /// Returns an [`ExprResult`] containing:
+    /// * `total` - The final sum
+    /// * `rolls` - All dice rolls (subtracted rolls are negative)
+    /// * `modifier` - The sum of all constant terms
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use dice_parser::{Parser, Roller};
+    ///
+    /// let mut parser = Parser::new("2d6 + 1d8 + 3");
+    /// let expr = parser.parse().unwrap();
+    ///
+    /// let mut roller = Roller::default();
+    /// let result = roller.roll_expr(&expr).unwrap();
+    ///
+    /// assert_eq!(result.rolls.len(), 3); // 2 from 2d6, 1 from 1d8
+    /// assert_eq!(result.modifier, 3);
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns a [`DiceError`] if:
+    /// * Integer overflow occurs during evaluation
+    /// * A roll specification is invalid
     pub fn roll_expr(&mut self, expr: &DiceExpr) -> Result<ExprResult, DiceError> {
         match expr {
             DiceExpr::Sum(lhs, rhs) => Ok(self.roll_expr(lhs)? + self.roll_expr(rhs)?),
