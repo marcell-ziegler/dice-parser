@@ -1,5 +1,7 @@
 use std::str::FromStr;
 
+use rand::Rng;
+
 use crate::{
     error::DiceError,
     parser::Parser,
@@ -25,6 +27,10 @@ impl FromStr for DiceExpr {
 impl DiceExpr {
     pub fn roll(&self) -> Result<ExprResult, DiceError> {
         let mut roller = Roller::default();
+        roller.roll_expr(self)
+    }
+    pub fn roll_with_rng<T: Rng>(&self, r: T) -> Result<ExprResult, DiceError> {
+        let mut roller = Roller::from_rng(r);
         roller.roll_expr(self)
     }
     pub fn parse(input: &str) -> Result<DiceExpr, DiceError> {
