@@ -18,11 +18,6 @@ impl<'a> Parser<'a> {
         self.input[self.byte_pos..].chars().next()
     }
 
-    /// Peek at the `char` two characters down.
-    fn lookahead(&self) -> Option<char> {
-        self.input[self.byte_pos..].chars().nth(1)
-    }
-
     /// Consume the current `char`, moving the cursor forward one `char`, and return the consumed
     /// `char`. `None` if no next `char`.
     fn consume(&mut self) -> Option<char> {
