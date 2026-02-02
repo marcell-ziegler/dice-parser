@@ -139,6 +139,10 @@ impl DiceExpr {
     /// - Subtraction: `expr - expr`
     /// - Whitespace is ignored
     ///
+    /// Note: Keep mechanics (e.g., "2d20kh" for keep highest, "6d6kl3" for keep lowest 3)
+    /// are planned for a future release. Currently, use manual construction with
+    /// `RollSpec` and `Keep` for keep functionality.
+    ///
     /// # Parameters
     ///
     /// - `input`: A string slice containing the dice expression

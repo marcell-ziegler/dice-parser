@@ -9,7 +9,7 @@
 //! ## Features
 //!
 //! - Parse standard dice notation (e.g., "2d6", "1d20+5", "3d8-2")
-//! - Support for keep highest/lowest mechanics (via manual construction)
+//! - Support for keep highest/lowest mechanics (currently via manual construction only; parsing support planned for future release)
 //! - Detailed roll results including individual die rolls and modifiers
 //! - Custom RNG support for deterministic testing
 //! - Comprehensive error handling

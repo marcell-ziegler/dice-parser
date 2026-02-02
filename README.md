@@ -10,7 +10,7 @@ This crate provides a simple and flexible way to parse and evaluate dice express
 ## Features
 
 - Parse standard dice notation (e.g., "2d6", "1d20+5", "3d8-2")
-- Support for keep highest/lowest mechanics (via manual construction)
+- Support for keep highest/lowest mechanics (currently via manual construction only; parsing support planned for future release)
 - Detailed roll results including individual die rolls and modifiers
 - Custom RNG support for deterministic testing
 - Comprehensive error handling
@@ -104,7 +104,7 @@ When parsing from strings, the following syntax is supported:
 - **Whitespace**: Ignored throughout the expression
   - Example: `2d6+3` and `2d6 + 3` are equivalent
 
-Note: Keep mechanics (`Keep::Highest` and `Keep::Lowest`) are only available through manual construction, not parsing.
+Note: Keep mechanics (`Keep::Highest` and `Keep::Lowest`) are currently only available through manual construction. Parsing support for keep syntax (e.g., "2d20kh" for keep highest, "6d6kl3" for keep lowest 3) is planned for a future release.
 
 ## Examples
 
