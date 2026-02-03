@@ -21,4 +21,4 @@ jobs:
     - name: Run tests
       run: cargo test --verbose
     - name: Build docs
-      run: cargo docs --verbose
+      run: cargo doc --verbose
