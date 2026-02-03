@@ -66,7 +66,7 @@ impl FromStr for DiceExpr {
 }
 
 impl DiceExpr {
-    /// Evaluate the dice expression using the default random number generator.
+    /// Evaluate the dice expression using the default random number generator provided by the `rand` crate.
     ///
     /// This method rolls all dice in the expression and computes the final result,
     /// including individual roll values and any modifiers.
@@ -128,8 +128,8 @@ impl DiceExpr {
 
     /// Parse a dice expression from a string.
     ///
-    /// This is the primary way to create a `DiceExpr` from user input.
-    /// The parser supports standard dice notation with addition and subtraction.
+    /// This is the prefred way to create a `DiceExpr`. This is especially useful when parsin user input.
+    /// The parser supports a subset standard dice notation with addition and subtraction.
     ///
     /// # Supported Syntax
     ///
