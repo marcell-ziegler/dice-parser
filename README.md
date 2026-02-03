@@ -5,12 +5,12 @@ A parser and roller for standard RPG dice notation in Rust.
 [![Crates.io](https://img.shields.io/crates/v/dice-parser.svg)](https://crates.io/crates/dice-parser)
 [![Documentation](https://docs.rs/dice-parser/badge.svg)](https://docs.rs/dice-parser)
 
-This crate provides a simple and flexible way to parse and evaluate dice expressions commonly used in tabletop role-playing games. It supports basic arithmetic operations (addition and subtraction) and dice rolling with various modifiers.
+This crate provides a simple way to parse and evaluate dice expressions commonly used in tabletop role-playing games. It supports basic arithmetic operations (addition and subtraction) and dice rolling with various modifiers.
 
 ## Features
 
 - Parse standard dice notation (e.g., "2d6", "1d20+5", "3d8-2")
-- Support for keep highest/lowest mechanics (currently via manual construction only; parsing support planned for future release)
+- Support for keeping n highest or lowest rolls (currently via manual construction only; parsing support planned for a future release)
 - Detailed roll results including individual die rolls and modifiers
 - Custom RNG support for deterministic testing
 - Comprehensive error handling
@@ -95,6 +95,7 @@ When parsing from strings, the following syntax is supported:
 
 - **Dice rolls**: `NdS` where N is the number of dice and S is the number of sides
   - Example: `2d6`, `1d20`, `3d8`
+  - Note: Both the number of dice, and the number of sides needs to be strictly non-negative.
 - **Literals**: Any integer (positive or negative)
   - Example: `5`, `-3`, `100`
 - **Addition**: `expr + expr`
@@ -104,7 +105,7 @@ When parsing from strings, the following syntax is supported:
 - **Whitespace**: Ignored throughout the expression
   - Example: `2d6+3` and `2d6 + 3` are equivalent
 
-Note: Keep mechanics (`Keep::Highest` and `Keep::Lowest`) are currently only available through manual construction. Parsing support for keep syntax (e.g., "2d20kh" for keep highest, "6d6kl3" for keep lowest 3) is planned for a future release.
+**Note:** Keep mechanics (`Keep::Highest` and `Keep::Lowest`) are currently only available through manual construction. Parsing support for keep syntax (e.g., "2d20kh" for keep highest, "6d6kl3" for keep lowest 3) is planned for a future release.
 
 ## Examples
 
@@ -154,7 +155,7 @@ match DiceExpr::parse("-2d6") {
 }
 ```
 
-## Public API
+## API Cheat-sheet
 
 The public API consists of the following main types:
 
@@ -180,8 +181,8 @@ The public API consists of the following main types:
 
 ## License
 
-This project is licensed under the terms specified in the LICENSE file.
+This library is licensed under GNU-GPL v3.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+This began as a personal project, but if it was of any use for you and you have suggestions on how to improve it: feel free to reach out on GitHub or submit a pull request!
