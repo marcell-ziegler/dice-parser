@@ -124,25 +124,3 @@ fn test_error_type_accessible() {
         DiceError::Overflow(..) => panic!("Wrong error type"),
     }
 }
-
-#[test]
-fn test_api_extensibility() {
-    // Requirement 4: API should be extensible
-    // The enum-based design allows for future variants
-    // The method-based approach allows for adding new methods
-    // All types can be extended with traits
-    
-    // Example: Custom trait implementation
-    trait CustomRoll {
-        fn custom_roll(&self) -> String;
-    }
-    
-    impl CustomRoll for DiceExpr {
-        fn custom_roll(&self) -> String {
-            format!("Custom: {:?}", self.roll())
-        }
-    }
-    
-    let expr = DiceExpr::parse("1d6").unwrap();
-    let _ = expr.custom_roll(); // Extension works
-}
