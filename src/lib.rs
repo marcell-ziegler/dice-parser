@@ -2,7 +2,7 @@
 //!
 //! A parser and roller for standard RPG dice notation.
 //!
-//! This crate provides a simple and flexible way to parse and evaluate dice expressions
+//! This crate provides a simple way to parse and evaluate dice expressions
 //! commonly used in tabletop role-playing games. It supports basic arithmetic operations
 //! (addition and subtraction) and dice rolling with various modifiers.
 //!
