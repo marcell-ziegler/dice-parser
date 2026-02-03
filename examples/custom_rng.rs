@@ -35,11 +35,4 @@ fn main() {
     println!("  Total: {}", result3.total);
     println!("  Rolls: {:?}", result3.rolls);
     println!("\n✓ Different seed produces different results (usually)");
-
-    println!("\n=== Use Case: Reproducible Test Suites ===\n");
-    println!("This is useful for:");
-    println!("  • Writing deterministic unit tests");
-    println!("  • Debugging specific roll sequences");
-    println!("  • Replaying game sessions with known outcomes");
-    println!("  • Performance testing with consistent data");
 }
