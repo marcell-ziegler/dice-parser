@@ -8,6 +8,7 @@ repository = "https://github.com/marcell-ziegler/dice-parser"
 readme = "README.md"
 keywords = ["dice", "rpg", "parser", "roller", "tabletop"]
 categories = ["games", "parsing"]
+exclude = [".github/"]
 
 [package.metadata.docs.rs]
 all-features = true
