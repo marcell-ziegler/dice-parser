@@ -52,16 +52,55 @@ pub enum RollDetail {
     Constant(i32),
 }
 
-/// The result of a whole `DiceExpr`.
+/// The result of evaluating a dice expression.
 ///
-/// * `total`: The sum of all rolls and modifiers. Subtracted rolls are treated as negative in the
-///   sum.
-/// * `rolls`: All rolls made or used during evaluation. Subtracted rolls are negative.
-/// * `modifier`: The sum of all constant terms in the `DiceExpr`.
+/// This struct contains the final total, all individual die rolls (with their signs),
+/// and the sum of all constant modifiers in the expression.
+///
+/// # Fields
+///
+/// - `total`: The final result after all rolls and modifiers are applied
+/// - `rolls`: All individual die rolls. Rolls from subtracted expressions are negative.
+/// - `modifier`: The sum of all constant (non-dice) terms in the expression
+///
+/// # Examples
+///
+/// ```
+/// use dice_parser::DiceExpr;
+///
+/// let expr = DiceExpr::parse("2d6+3").unwrap();
+/// let result = expr.roll().unwrap();
+///
+/// // Access the components of the result
+/// println!("Total: {}", result.total);           // e.g., 10
+/// println!("Dice rolls: {:?}", result.rolls);    // e.g., [3, 4]
+/// println!("Modifier: {}", result.modifier);     // 3
+///
+/// // Total equals sum of rolls plus modifier
+/// assert_eq!(result.total, result.rolls.iter().sum::<i32>() + result.modifier);
+/// ```
+///
+/// ## Subtraction Example
+///
+/// ```
+/// use dice_parser::DiceExpr;
+///
+/// let expr = DiceExpr::parse("10 - 2d6").unwrap();
+/// let result = expr.roll().unwrap();
+///
+/// // Subtracted rolls are negative in the rolls vec
+/// assert_eq!(result.modifier, 10);
+/// assert_eq!(result.rolls.len(), 2);
+/// // Both rolls should be negative
+/// assert!(result.rolls[0] < 0 && result.rolls[1] < 0);
+/// ```
 #[derive(Debug, Clone)]
 pub struct ExprResult {
+    /// The total result of the expression.
     pub total: i32,
+    /// All individual die rolls. Subtracted rolls are negative.
     pub rolls: Vec<i32>,
+    /// The sum of all constant modifiers in the expression.
     pub modifier: i32,
 }
 

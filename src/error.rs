@@ -5,32 +5,81 @@ use std::{
 
 use crate::ast::RollSpec;
 
+/// Errors that can occur when parsing or evaluating dice expressions.
+///
+/// This enum covers all possible error conditions, including parse errors,
+/// invalid roll specifications, and arithmetic overflow.
+///
+/// # Variants
+///
+/// - `Overflow`: Integer overflow during calculation
+/// - `InvalidSpec`: Invalid roll specification (e.g., trying to keep more dice than rolled)
+/// - `ParseError`: Error parsing the input string
+/// - `SyntaxError`: Syntax error in the dice expression
+/// - `TrailingInput`: Unexpected characters after the expression
+///
+/// # Examples
+///
+/// ```
+/// use dice_parser::DiceExpr;
+///
+/// // Parse error - invalid syntax
+/// let err = DiceExpr::parse("2d").unwrap_err();
+///
+/// // Syntax error - negative dice count
+/// let err = DiceExpr::parse("-2d6").unwrap_err();
+///
+/// // Trailing input error
+/// let err = DiceExpr::parse("2d6 extra").unwrap_err();
+/// ```
 #[derive(Clone)]
 pub enum DiceError {
+    /// Integer overflow occurred during calculation.
     Overflow(String),
+    /// Invalid roll specification.
+    ///
+    /// This error occurs when a `RollSpec` is invalid, such as trying to
+    /// keep more dice than were rolled.
     InvalidSpec(RollSpec, String),
+    /// Parse error with details about what went wrong.
     ParseError {
+        /// The kind of parse error.
         kind: ParseErrorKind,
+        /// The input string that failed to parse.
         input: String,
+        /// The byte position where the error started.
         start: usize,
+        /// The byte position where the error ended (if applicable).
         stop: Option<usize>,
     },
+    /// Syntax error in the dice expression.
     SyntaxError {
+        /// The input string with the syntax error.
         input: String,
+        /// The byte position where the error started.
         start: usize,
+        /// The byte position where the error ended (if applicable).
         stop: Option<usize>,
+        /// Description of what was expected.
         expected: Option<String>,
     },
+    /// Unexpected characters found after the expression.
     TrailingInput {
+        /// The input string with trailing characters.
         input: String,
+        /// The byte position where trailing input begins.
         pos: usize,
     },
 }
 
+/// The specific kind of parse error that occurred.
 #[derive(Debug, Clone)]
 pub enum ParseErrorKind {
+    /// Expected a number but found something else.
     ExpectedNumber,
+    /// Failed to parse an i32 value.
     InvalidI32,
+    /// Failed to parse a u32 value.
     InvalidU32,
 }
 
