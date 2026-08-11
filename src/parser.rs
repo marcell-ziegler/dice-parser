@@ -1,5 +1,5 @@
 use crate::{
-    ast::{DiceExpr, RollSpec},
+    ast::{DiceExpr, RollSpec, Keep},
     error::{DiceError, ParseErrorKind},
 };
 
@@ -129,11 +129,52 @@ impl<'a> Parser<'a> {
 
             let sides = self.parse_u32()?;
 
+            self.skip_ws();
+
+
+            let keep = 
+                if matches!(self.peek(), Some('k')) {
+                    self.consume();
+                    if matches!(self.peek(), Some('h')) {
+                        self.skip_ws();
+                        self.consume();
+                        self.skip_ws();
+                        if matches!(self.peek(), Some(c) if c.is_ascii_digit()) {
+                            Some(Keep::Highest(self.parse_u32()?))
+                        }
+                        else {
+                            Some(Keep::Highest(1))
+                        }
+                    }
+                    else if matches!(self.peek(), Some('l')) {
+                        self.skip_ws();
+                        self.consume();
+                        self.skip_ws();
+                        if matches!(self.peek(), Some(c) if c.is_ascii_digit()) {
+                            Some(Keep::Lowest(self.parse_u32()?))
+                        }
+                        else {
+                            Some(Keep::Lowest(1))
+                        }
+                    }
+                    else {
+                        return Err(DiceError::SyntaxError {
+                            input: self.input.to_string(),
+                            start,
+                            stop: Some(self.byte_pos),
+                            expected: Some(String::from("'kh' for keep highest or 'kl' for keep lowest")),
+                        });
+                    }
+                }
+                else {
+                        None
+                };
+
             return Ok(DiceExpr::Roll(RollSpec::new(
                 // count is always >= 0 and <= u32::MAX
                 count.try_into().unwrap(),
                 sides,
-                None,
+                keep,
             )));
         }
 
@@ -181,7 +222,7 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod test {
-    use crate::{ast::DiceExpr, parser::Parser, roller::Roller};
+    use crate::{ast::DiceExpr, parser::Parser, roller::Roller, ast::Keep};
 
     #[test]
     fn test_new_parser() {
@@ -295,6 +336,65 @@ mod test {
     }
 
     #[test]
+    fn test_parse_term_roll_keep_highest() {
+        let mut parser = Parser::new("4d6kh2");
+        let result = parser.parse_term().unwrap();
+        if let DiceExpr::Roll(roll_spec) = result {
+            assert_eq!(roll_spec.count, 4);
+            assert_eq!(roll_spec.sides, 6);
+            assert_eq!(roll_spec.keep, Some(Keep::Highest(2)));
+        } else {
+            panic!("Expected a DiceExpr::Roll, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_parse_term_roll_keep_highest_default() {
+        let mut parser = Parser::new("4d6kh");
+        let result = parser.parse_term().unwrap();
+        if let DiceExpr::Roll(roll_spec) = result {
+            assert_eq!(roll_spec.count, 4);
+            assert_eq!(roll_spec.sides, 6);
+            assert_eq!(roll_spec.keep, Some(Keep::Highest(1)));
+        } else {
+            panic!("Expected a DiceExpr::Roll, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_parse_term_roll_keep_lowest() {
+        let mut parser = Parser::new("4d6 kl 2");
+        let result = parser.parse_term().unwrap();
+        if let DiceExpr::Roll(roll_spec) = result {
+            assert_eq!(roll_spec.count, 4);
+            assert_eq!(roll_spec.sides, 6);
+            assert_eq!(roll_spec.keep, Some(Keep::Lowest(2)));
+        } else {
+            panic!("Expected a DiceExpr::Roll, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_parse_term_roll_keep_lowest_default() {
+        let mut parser = Parser::new("4d6kl");
+        let result = parser.parse_term().unwrap();
+        if let DiceExpr::Roll(roll_spec) = result {
+            assert_eq!(roll_spec.count, 4);
+            assert_eq!(roll_spec.sides, 6);
+            assert_eq!(roll_spec.keep, Some(Keep::Lowest(1)));
+        } else {
+            panic!("Expected a DiceExpr::Roll, got {:?}", result);
+        }
+    }
+
+    #[test]
+    fn test_parse_term_roll_keep_invalid() {
+        let mut parser = Parser::new("4d6kr");
+        let result = parser.parse_term();
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn test_parse_term_invalid_dice_count() {
         let mut parser = Parser::new("-2d6");
         let result = parser.parse_term();
@@ -309,6 +409,32 @@ mod test {
             if let DiceExpr::Roll(roll_spec) = *lhs {
                 assert_eq!(roll_spec.count, 5);
                 assert_eq!(roll_spec.sides, 6);
+            } else {
+                panic!("Expected left operand to be DiceExpr::Roll, got {:?}", lhs);
+            }
+
+            if let DiceExpr::Literal(value) = *rhs {
+                assert_eq!(value, 3);
+            } else {
+                panic!(
+                    "Expected right operand to be DiceExpr::Literal, got {:?}",
+                    rhs
+                );
+            }
+        } else {
+            panic!("Expected a DiceExpr::Sum, got {:?}", result);
+        }
+    }
+
+     #[test]
+    fn test_parse_expr_diff_highest() {
+        let mut parser = Parser::new("5d6kh-3");
+        let result = parser.parse_expr().unwrap();
+        if let DiceExpr::Difference(lhs, rhs) = result {
+            if let DiceExpr::Roll(roll_spec) = *lhs {
+                assert_eq!(roll_spec.count, 5);
+                assert_eq!(roll_spec.sides, 6);
+                assert_eq!(roll_spec.keep, Some(Keep::Highest(1)));
             } else {
                 panic!("Expected left operand to be DiceExpr::Roll, got {:?}", lhs);
             }
