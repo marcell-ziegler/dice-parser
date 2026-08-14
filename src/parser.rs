@@ -160,14 +160,24 @@ impl<'a> Parser<'a> {
                     else {
                         return Err(DiceError::SyntaxError {
                             input: self.input.to_string(),
-                            start,
-                            stop: Some(self.byte_pos),
+                            start: self.byte_pos-1,
+                            stop: Some(self.byte_pos+1),
                             expected: Some(String::from("'kh' for keep highest or 'kl' for keep lowest")),
                         });
                     }
                 }
                 else {
-                        None
+                        if matches!(self.peek(), Some('+')) || matches!(self.peek(), Some('-')) || matches!(self.peek(), None) {
+                            None
+                        }
+                        else {
+                            return Err(DiceError::SyntaxError {
+                                input: self.input.to_string(),
+                                start: self.byte_pos,
+                                stop: Some(self.byte_pos+1),
+                                expected: Some(String::from("'kh' for keep highest or 'kl' for keep lowest")),
+                            });
+                        }
                 };
 
             return Ok(DiceExpr::Roll(RollSpec::new(
@@ -390,6 +400,13 @@ mod test {
     #[test]
     fn test_parse_term_roll_keep_invalid() {
         let mut parser = Parser::new("4d6kr");
+        let result = parser.parse_term();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_term_roll_keep_invalid2() {
+        let mut parser = Parser::new("4d6pl");
         let result = parser.parse_term();
         assert!(result.is_err());
     }
